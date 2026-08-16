@@ -1,107 +1,95 @@
-# TechFix - Painel Financeiro
+# AlphaOS
+### Sistema de Gestão para Assistência Técnica de Celulares e Loja de Acessórios
 
-Uma aplicação web de dashboard financeiro desenvolvida com React e Vite, implementando fielmente o design do Figma.
+## Sobre o Projeto
 
-## 📋 Recursos
+Este projeto tem como objetivo desenvolver um sistema web para automatizar a gestão de uma assistência técnica de celulares e uma loja de acessórios.
 
-- ✅ React 18 com Vite para máximo desempenho
-- ✅ Componentes reutilizáveis e bem organizados
-- ✅ Sidebar responsiva com navegação
-- ✅ Cards de KPIs (Receita Bruta, Lucro Líquido, Ticket Médio, Ordens Abertas)
-- ✅ Gráfico de Evolução de Receita interativo
-- ✅ Seção Mais Vendidos com visualização de barras
-- ✅ Tabela Técnicos em Destaque
-- ✅ Ícones do Lucide React (semelhantes ao Figma)
-- ✅ Design responsivo (Desktop, Tablet, Mobile)
-- ✅ CSS modular e organizado
-- ✅ Fidelidade visual máxima ao design original
+Atualmente, diversos processos são realizados manualmente, como o cadastro de ordens de serviço, controle de estoque, registro de vendas e acompanhamento financeiro. Essa forma de gerenciamento dificulta o controle das informações, aumenta a possibilidade de erros e reduz a eficiência do atendimento aos clientes.
 
-## 🛠️ Dependências
+A proposta do sistema é integrar todos esses processos em uma única plataforma, permitindo o gerenciamento de clientes, equipamentos, ordens de serviço, estoque, vendas, relatórios financeiros e controle de usuários com diferentes níveis de acesso (Administrador, Técnico e Vendedor).
 
-- **React**: 18.2.0
-- **React DOM**: 18.2.0
-- **Vite**: 5.0.8
-- **Lucide React**: 0.263.1 (ícones SVG)
 
-## 🚀 Como Executar
+Integrantes do Grupo
+Gabriel Libmann
+Igor Hetman
+Natali Lascoski
 
-### Passo 1: Instalar Dependências
-```bash
-npm install
-```
 
-### Passo 2: Executar em Desenvolvimento
-```bash
-npm run dev
-```
+Tecnologias e Ferramentas Utilizadas
+Prototipação
+Figma
+Backend (Planejado)
+Python
+Flask
+SQLAlchemy
+Banco de Dados
+PostgreSQL
+Frontend
+HTML5
+CSS3
+JavaScript
+Bootstrap
+Bibliotecas Previstas
+ReportLab (Geração de PDF)
+SMTP (Envio de e-mails)
+Ferramentas
+Git
+GitHub
+Visual Studio Code
+Status do Projeto
 
-A aplicação abrirá automaticamente em `http://localhost:5173`
+Fase atual: Planejamento e Prototipação.
 
-### Passo 3: Build para Produção
-```bash
-npm run build
-```
+Até o momento foram concluídas as seguintes etapas:
 
-Os arquivos otimizados serão gerados na pasta `dist/`
+Levantamento dos requisitos.
+Definição das funcionalidades.
+Modelagem inicial do sistema.
+Criação do protótipo das telas no Figma.
+Criação do repositório no GitHub.
 
-## 📁 Estrutura do Projeto
+As etapas de implementação do sistema serão desenvolvidas nas próximas fases do projeto.
 
-```
-figmaprojeto/
-├── src/
-│   ├── components/
-│   │   ├── Sidebar.jsx / Sidebar.css          # Navegação lateral
-│   │   ├── Header.jsx / Header.css            # Cabeçalho do painel
-│   │   ├── KPICard.jsx / KPICard.css          # Cartões de métricas
-│   │   ├── RevenueChart.jsx / RevenueChart.css # Gráfico de receita
-│   │   ├── TopProducts.jsx / TopProducts.css  # Produtos mais vendidos
-│   │   └── TechniciansTable.jsx / TechniciansTable.css # Tabela técnicos
-│   ├── App.jsx                                # Componente principal
-│   ├── App.css                                # Estilos do layout principal
-│   ├── main.jsx                               # Ponto de entrada
-│   └── index.css                              # Estilos globais
-├── index.html                                 # HTML principal
-├── vite.config.js                             # Configuração Vite
-├── package.json                               # Dependências
-└── .gitignore                                 # Gitignore
-```
+Instalação e Execução
 
-## 🎨 Design e Fidelidade
+Como o projeto encontra-se em fase de prototipação, ainda não há código-fonte disponível para execução.
 
-O design foi implementado com máxima fidelidade ao arquivo Figma original:
+As tecnologias previstas para desenvolvimento são:
 
-- **Cores**: Paleta de cores exata conforme Figma
-- **Tipografia**: Espaçamento e tamanhos de fonte precisos
-- **Layout**: Grid e Flexbox para replicar o layout original
-- **Responsividade**: Pontos de quebra em 1440px, 1024px e 768px
-- **Componentes**: Cada seção do Figma foi convertida em componentes React reutilizáveis
+Python
+Flask
+PostgreSQL
+HTML5
+CSS3
+JavaScript
+Bootstrap
 
-## 📱 Responsividade
+Quando a implementação for iniciada, as instruções de instalação, dependências e execução serão adicionadas a este repositório.
 
-- **Desktop (1440px+)**: Layout completo com 4 KPIs em linha
-- **Tablet (1024px)**: Layout 2x2 para KPIs, gráficos empilhados
-- **Mobile (768px)**: Layout em coluna única, com ajustes de tipografia
+Dependências Previstas
+Python 3.x
+Flask
+SQLAlchemy
+PostgreSQL
+Bootstrap
+ReportLab
+Estrutura Inicial do Projeto
+assistencia-tecnica/
 
-## 🔧 Customização
+├── backend/
+├── frontend/
+├── database/
+├── docs/
+└── README.md
+Protótipo no Figma
 
-Todos os valores, cores e textos podem ser facilmente customizados:
+Link do protótipo: https://www.figma.com/design/N2eAmd64ssRn3ScvkKDLeu/Sem-t%C3%ADtulo?t=9EWgNoNI6VGtng9T-1
 
-- **Valores dos KPIs**: Editar em `App.jsx`
-- **Cores**: Variáveis CSS em `index.css`
-- **Espaçamento**: Variáveis de spacing em `index.css`
-- **Dados**: Passar como props para os componentes
+Licença
 
-## 📝 Notas
+Projeto desenvolvido para fins acadêmicos.
 
-- Os dados exibidos são estáticos e podem ser substituídos por dados dinâmicos de uma API
-- O gráfico de receita é uma visualização SVG sem biblioteca externa
-- Todos os ícones utilizam Lucide React para melhor performance
-- O projeto está pronto para integração com um backend
+Projeto Acadêmico • 2026
 
-## 🎯 Próximos Passos
-
-- Integrar com API para dados dinâmicos
-- Adicionar mais interatividade (filtros, exportação)
-- Implementar autenticação de usuário
-- Adicionar temas (light/dark mode)
-- Otimizar performance com React.memo e useMemo
+</div>
