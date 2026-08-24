@@ -32,7 +32,7 @@ export default function Sidebar() {
           </div>
 
           <div className="brand-text">
-            <h1 className="brand-title">AlphaOS</h1>
+            <h1 className="brand-title"> AlphaOS </h1>
             <p className="brand-subtitle">SISTEMA DE GESTÃO</p>
           </div>
         </div>
