@@ -86,7 +86,37 @@ Protótipo no Figma
 
 Link do protótipo: https://www.figma.com/design/N2eAmd64ssRn3ScvkKDLeu/Sem-t%C3%ADtulo?t=9EWgNoNI6VGtng9T-1
 
-Licença
+## Como executar
+1. Clone o projeto:
+
+```bash
+git clone https://github.com/Lascoski/AlphaOS.git
+cd AlphaOS
+```
+2. Crie no PostgreSQL o banco `alphaos_db` e restaure o arquivo `bkp alphaos_db.backup`.
+
+3. Na pasta `alphaos-backend`, crie o `.env`:
+```env
+DB_USER=postgres
+DB_PASSWORD=SUA_SENHA
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=alphaos_db
+```
+4. Inicie o backend:
+```bash
+cd alphaos-backend
+npm install
+node server.js
+```
+5. Em outro terminal, inicie o frontend:
+
+```bash
+npm install
+npm run dev
+```
+Acesse o endereço `localhost` exibido pelo Vite.
+
 
 Projeto desenvolvido para fins acadêmicos.
 
