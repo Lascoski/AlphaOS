@@ -452,14 +452,8 @@ export default function OrdensServico() {
 
                 {osSelecionada.status === 'Aprovação du Cliente' || osSelecionada.status === 'Aprovação do Cliente' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
-                    <button type="button" onClick={enviarOrcamentoWhatsApp} style={{ backgroundColor: '#25D366', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 'var(--radius-md)', fontWeight: '600', cursor: 'pointer', fontSize: '13px' }}>
-                      💬 Enviar Orçamento via WhatsApp
-                    </button>
+                    
                     <div className="approval-buttons">
-                      <button type="button" className="btn-step btn-aprovar" onClick={() => alterarStatusOS('Compra das Peças')}>1 - Aprovado</button>
-                      <button type="button" className="btn-step btn-recusar" onClick={() => alterarStatusOS('Pronto (Avisar Cliente)')}>2 - Recusado</button>
-                      <button type="button" className="btn-step btn-descartar" onClick={() => alterarStatusOS('Finalizado')}>3 - Descarte</button>
-                      <button type="button" className="btn-step" style={{ backgroundColor: '#6366f1', color: 'white' }} onClick={() => alert('Redirecionar para atendente.')}>4 - Dúvida</button>
                     </div>
                   </div>
                 ) : (
