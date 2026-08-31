@@ -8,7 +8,10 @@ import RevenueChart from './components/RevenueChart'
 import TopProducts from './components/TopProducts'
 import TechniciansTable from './components/TechniciansTable'
 import OrdensServico from './components/OrdensServico'
+<<<<<<< HEAD
 import Clientes from './components/Clientes'
+=======
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 
 import './App.css'
 
@@ -118,7 +121,14 @@ function App() {
             element={<PaginaTemporaria titulo="Vendas (PDV)" />}
           />
 
+<<<<<<< HEAD
           <Route path="/clientes" element={<Clientes />} />
+=======
+          <Route
+            path="/clientes"
+            element={<PaginaTemporaria titulo="Clientes" />}
+          />
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 
           <Route
             path="/relatorios"

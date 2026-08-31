@@ -1,20 +1,32 @@
 import { useState, useEffect } from 'react'
+<<<<<<< HEAD
 import { Search, Plus, MoreVertical, X, Smartphone, User, Calendar, DollarSign, Trash2 } from 'lucide-react'
+=======
+import { Search, Plus, MoreVertical, X } from 'lucide-react'
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 import Header from './Header' 
 import './OrdensServico.css'
 
 export default function OrdensServico() {
   const [listaOS, setListaOS] = useState([])
+<<<<<<< HEAD
   const [clientes, setClientes] = useState([])
+=======
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
   const [carregando, setCarregando] = useState(true)
   
   const [modalCadastroAberto, setModalCadastroAberto] = useState(false)
   const [modalVisaoAberto, setModalVisaoAberto] = useState(false)
   const [osSelecionada, setOsSelecionada] = useState(null)
+<<<<<<< HEAD
+=======
+  const [menuAberto, setMenuAberto] = useState(null)
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
   
   const [filtroEtapa, setFiltroEtapa] = useState('Todas')
   const [buscaTexto, setBuscaTexto] = useState('')
 
+<<<<<<< HEAD
   const [buscaCliente, setBuscaCliente] = useState('')
   const [clienteSelecionado, setClienteSelecionado] = useState(null)
 
@@ -25,6 +37,11 @@ export default function OrdensServico() {
   })
 
   const estadoInicial = {
+=======
+  const estadoInicial = {
+    cliente_nome: '', telefone: '', cpf: '', 
+    rua: '', numero: '', bairro: '', cidade: '', sem_numero: false,
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     marca: '', aparelho: '', cor: '', senha: '', tipo_senha: 'texto',
     defeito: '', defeito_diagnosticado: '', acessorios: '', avarias: [], observacoes: '', valor_estimado: ''
   }
@@ -61,6 +78,7 @@ export default function OrdensServico() {
     'Wi-Fi, Bluetooth e Rede', 'Biometria / Face ID', 'Bateria / Carregamento'
   ]
 
+<<<<<<< HEAD
   const buscarDados = () => {
     setCarregando(true)
     fetch('http://localhost:3001/api/ordens')
@@ -124,6 +142,30 @@ export default function OrdensServico() {
       console.error('Erro:', error);
       alert('Erro de conexão com o servidor.');
     }
+=======
+  const buscarOrdens = () => {
+    setCarregando(true)
+    fetch('http://localhost:3001/api/ordens')
+      .then(res => res.json())
+      .then(dados => { setListaOS(dados); setCarregando(false) })
+      .catch(erro => { console.error(erro); setCarregando(false) })
+  }
+
+  useEffect(() => { buscarOrdens() }, [])
+
+  const handleBuscarCNPJ = async () => {
+    const cnpjLimpo = formData.cpf.replace(/\D/g, '')
+    if (cnpjLimpo.length !== 14) return alert("Digite um CNPJ válido com 14 números.")
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjLimpo}`)
+      if (!res.ok) throw new Error("CNPJ não encontrado")
+      const data = await res.json()
+      setFormData(prev => ({
+        ...prev, cliente_nome: data.razao_social || '', telefone: data.ddd_telefone_1 || '',
+        rua: data.logradouro || '', numero: data.numero || '', bairro: data.bairro || '', cidade: data.municipio || ''
+      }))
+    } catch (error) { alert("CNPJ não encontrado.") }
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
   }
 
   const handleAvarias = (avaria) => {
@@ -152,6 +194,11 @@ export default function OrdensServico() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...osSelecionada,
+<<<<<<< HEAD
+=======
+          cliente_id: osSelecionada.cliente_id,
+          cliente_nome: osSelecionada.cliente_nome,
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           testes_qualidade: stringTestes
         })
       })
@@ -164,6 +211,7 @@ export default function OrdensServico() {
 
   const handleSalvarOS = async (e) => {
     e.preventDefault()
+<<<<<<< HEAD
     
     if (!clienteSelecionado) {
       return alert("Por favor, selecione um cliente antes de criar a Ordem de Serviço.")
@@ -179,6 +227,15 @@ export default function OrdensServico() {
       ...formData,
       cliente_id: clienteSelecionado.id,
       senha: formData.tipo_senha === 'padrao' ? `Padrão: ${padraoDesbloqueio.join('-')}` : formData.senha,
+=======
+    if (formData.tipo_senha === 'padrao' && padraoDesbloqueio.length === 0) return alert("Desenhe o padrão de desbloqueio.")
+    if (formData.avarias.length === 0) return alert("Selecione pelo menos uma avaria.")
+    
+    const dadosParaEnviar = {
+      ...formData,
+      senha: formData.tipo_senha === 'padrao' ? `Padrão: ${padraoDesbloqueio.join('-')}` : formData.senha,
+      numero: formData.sem_numero ? 'S/N' : formData.numero,
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       avarias: formData.avarias.join(', ')
     }
     
@@ -189,12 +246,16 @@ export default function OrdensServico() {
         body: JSON.stringify(dadosParaEnviar)
       })
       if (resposta.ok) {
+<<<<<<< HEAD
         setFormData(estadoInicial)
         setPadraoDesbloqueio([])
         setClienteSelecionado(null)
         setBuscaCliente('')
         setModalCadastroAberto(false)
         buscarDados()
+=======
+        setFormData(estadoInicial); setPadraoDesbloqueio([]); setModalCadastroAberto(false); buscarOrdens()
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       } else alert("Erro ao salvar.")
     } catch (erro) { console.error(erro) }
   }
@@ -240,7 +301,11 @@ export default function OrdensServico() {
       })
       if (res.ok) {
         setOsSelecionada(prev => ({ ...prev, status: novoStatus }))
+<<<<<<< HEAD
         buscarDados()
+=======
+        buscarOrdens()
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       }
     } catch (err) { console.error(err) }
   }
@@ -267,6 +332,11 @@ export default function OrdensServico() {
 
       const dadosAtualizados = {
         ...osSelecionada,
+<<<<<<< HEAD
+=======
+        cliente_id: osSelecionada.cliente_id,
+        cliente_nome: osSelecionada.cliente_nome,
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
         defeito_diagnosticado: defeitoDiagEditado,
         valor_estimado: valorEditado,
         testes_qualidade: stringTestes
@@ -280,7 +350,11 @@ export default function OrdensServico() {
 
       if (res.ok) {
         setOsSelecionada(dadosAtualizados)
+<<<<<<< HEAD
         buscarDados()
+=======
+        buscarOrdens()
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
         alert("Avaliação inicial atualizada com sucesso!")
       } else {
         alert("Erro ao atualizar avaliação.")
@@ -288,12 +362,39 @@ export default function OrdensServico() {
     } catch (err) { console.error(err) }
   }
 
+<<<<<<< HEAD
   const excluirOS = async (id, e) => {
     if (e) e.stopPropagation() // Impede de abrir a ficha ao clicar na lixeira
     if (confirm("Tem certeza que deseja excluir esta Ordem de Serviço?")) {
       try {
         const res = await fetch(`http://localhost:3001/api/ordens/${id}`, { method: 'DELETE' })
         if (res.ok) { setModalVisaoAberto(false); buscarDados() }
+=======
+  const enviarOrcamentoWhatsApp = async () => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}/enviar-whatsapp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telefone: osSelecionada.telefone,
+          cliente_nome: osSelecionada.cliente_nome,
+          aparelho: `${osSelecionada.marca} ${osSelecionada.aparelho}`,
+          defeito_diagnosticado: osSelecionada.defeito_diagnosticado || osSelecionada.defeito,
+          valor_estimado: osSelecionada.valor_estimado,
+          garantia: garantia
+        })
+      })
+      if (res.ok) alert("Orçamento disparado no WhatsApp do cliente com sucesso!")
+      else alert("Erro ao disparar mensagem.")
+    } catch (err) { console.error(err) }
+  }
+
+  const excluirOS = async (id) => {
+    if (confirm("Tem certeza que deseja excluir esta Ordem de Serviço?")) {
+      try {
+        const res = await fetch(`http://localhost:3001/api/ordens/${id}`, { method: 'DELETE' })
+        if (res.ok) { setModalVisaoAberto(false); buscarOrdens() }
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       } catch (err) { console.error(err) }
     }
   }
@@ -329,7 +430,11 @@ export default function OrdensServico() {
     const termo = buscaTexto.toLowerCase()
     const correspondeTexto = 
       os.numero_os.toLowerCase().includes(termo) ||
+<<<<<<< HEAD
       (os.cliente_nome && os.cliente_nome.toLowerCase().includes(termo)) ||
+=======
+      os.cliente_nome.toLowerCase().includes(termo) ||
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       os.aparelho.toLowerCase().includes(termo) ||
       os.marca.toLowerCase().includes(termo)
 
@@ -356,7 +461,11 @@ export default function OrdensServico() {
         </div>
 
         {/* FILTROS POR ETAPA */}
+<<<<<<< HEAD
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '20px' }}>
+=======
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '12px', marginBottom: '16px' }}>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           <button 
             onClick={() => setFiltroEtapa('Todas')}
             style={{ 
@@ -385,6 +494,7 @@ export default function OrdensServico() {
           })}
         </div>
 
+<<<<<<< HEAD
         {/* EXIBIÇÃO EM FORMATO DE BOX (CLICÁVEL PARA ABRIR A FICHA) */}
         {carregando ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Carregando Ordens de Serviço...</div>
@@ -437,6 +547,65 @@ export default function OrdensServico() {
             ))}
           </div>
         )}
+=======
+        <div className="os-table-container" style={{ overflow: 'visible' }}>
+          <table className="os-table">
+            <thead>
+              <tr>
+                <th>Nº OS</th>
+                <th>Cliente</th>
+                <th>Aparelho / Defeito</th>
+                <th>Data de Entrada</th>
+                <th>Status Atual</th>
+                <th>Valor Estimado</th>
+                <th style={{ width: '50px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {carregando ? (
+                <tr><td colSpan="7" style={{textAlign:'center', padding:'20px'}}>Carregando...</td></tr>
+              ) : ordensFiltradas.length === 0 ? (
+                <tr><td colSpan="7" style={{textAlign:'center', padding:'20px', color: 'var(--color-text-secondary)'}}>Nenhuma Ordem de Serviço encontrada nesta etapa.</td></tr>
+              ) : (
+                ordensFiltradas.map((os) => (
+                  <tr key={os.id}>
+                    <td><strong>{os.numero_os}</strong></td>
+                    <td>{os.cliente_nome}</td>
+                    <td>
+                      <div className="os-device">{os.marca} {os.aparelho}</div>
+                      <div className="os-defect">{os.defeito_diagnosticado || os.defeito}</div>
+                    </td>
+                    <td>{formatarData(os.data_entrada)}</td>
+                    <td><span className={`status-badge ${definirCorStatus(os.status)}`}>{os.status}</span></td>
+                    <td>{formatarValor(os.valor_estimado)}</td>
+                    <td style={{ position: 'visible', overflow: 'visible' }}>
+                      <div className="action-container">
+                        <button 
+                          className="action-btn" 
+                          onClick={() => setMenuAberto(menuAberto === os.id ? null : os.id)}
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+                        
+                        {menuAberto === os.id && (
+                          <div className="dropdown-menu" style={{ display: 'block' }}>
+                            <button className="dropdown-item" onClick={() => { abrirVisaoOS(os); setMenuAberto(null) }}>
+                              👀 Visualizar / Gerenciar
+                            </button>
+                            <button className="dropdown-item" style={{color: 'var(--color-danger)'}} onClick={() => { excluirOS(os.id); setMenuAberto(null) }}>
+                              🗑️ Excluir Ordem
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       </section>
 
       {/* MODAL DE VISUALIZAÇÃO E ESTEIRA */}
@@ -457,6 +626,10 @@ export default function OrdensServico() {
                   📞 {osSelecionada.telefone}
                 </span>
               </div>
+<<<<<<< HEAD
+=======
+              <button className="btn-edit-client" onClick={() => alert('Função de editar cliente em breve')}>Editar Cliente</button>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
             </div>
 
             <div className="stepper-container">
@@ -482,9 +655,24 @@ export default function OrdensServico() {
                 <button type="button" className="btn-step btn-step-prev" onClick={voltarEtapa} disabled={etapasFluxo.indexOf(osSelecionada.status) === 0}>
                   ← Voltar Etapa
                 </button>
+<<<<<<< HEAD
                 <button type="button" className="btn-step btn-step-next" onClick={avancarEtapa} disabled={osSelecionada.status === 'Finalizado'}>
                   Avançar Etapa →
                 </button>
+=======
+
+                {osSelecionada.status === 'Aprovação du Cliente' || osSelecionada.status === 'Aprovação do Cliente' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', alignItems: 'center' }}>
+                    
+                    <div className="approval-buttons">
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" className="btn-step btn-step-next" onClick={avancarEtapa} disabled={osSelecionada.status === 'Finalizado'}>
+                    Avançar Etapa →
+                  </button>
+                )}
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
               </div>
             </div>
 
@@ -645,7 +833,11 @@ export default function OrdensServico() {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* MODAL DE NOVA ORDEM DE SERVIÇO */}
+=======
+      {/* MODAL DE CADASTRO */}
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
       {modalCadastroAberto && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -656,6 +848,7 @@ export default function OrdensServico() {
               </button>
             </div>
             <form onSubmit={handleSalvarOS}>
+<<<<<<< HEAD
               
               <div className="form-grid">
                 
@@ -727,6 +920,53 @@ export default function OrdensServico() {
                     Identificação e Triagem
                   </h3>
                 </div>
+=======
+              <div className="form-grid">
+                <div className="form-group form-full"><h3 style={{fontSize: '14px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px'}}>Dados do Cliente</h3></div>
+                
+                <div className="form-group form-full">
+                  <label>CPF / CNPJ</label>
+                  <div className="input-with-button">
+                    <input type="text" required value={formData.cpf} onChange={e => setFormData({...formData, cpf: e.target.value})} placeholder="Apenas números" />
+                    <button type="button" className="btn-buscar-cnpj" onClick={handleBuscarCNPJ}>Buscar CNPJ</button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Nome Completo / Razão Social</label>
+                  <input type="text" required value={formData.cliente_nome} onChange={e => setFormData({...formData, cliente_nome: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>Telefone / WhatsApp</label>
+                  <input type="text" required value={formData.telefone} onChange={e => setFormData({...formData, telefone: e.target.value})} />
+                </div>
+                
+                <div className="form-group form-full">
+                  <label>Rua / Logradouro</label>
+                  <input type="text" required value={formData.rua} onChange={e => setFormData({...formData, rua: e.target.value})} />
+                </div>
+                
+                <div className="form-group">
+                  <label>Número</label>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                    <input type="text" required={!formData.sem_numero} disabled={formData.sem_numero} value={formData.numero} onChange={e => setFormData({...formData, numero: e.target.value})} style={{flex: 1}} />
+                    <label className="checkbox-label">
+                      <input type="checkbox" checked={formData.sem_numero} onChange={e => setFormData({...formData, sem_numero: e.target.checked, numero: ''})} /> S/N
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Bairro</label>
+                  <input type="text" required value={formData.bairro} onChange={e => setFormData({...formData, bairro: e.target.value})} />
+                </div>
+                <div className="form-group form-full">
+                  <label>Cidade</label>
+                  <input type="text" required value={formData.cidade} onChange={e => setFormData({...formData, cidade: e.target.value})} />
+                </div>
+
+                <div className="form-group form-full"><h3 style={{fontSize: '14px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px'}}>Identificação e Triagem</h3></div>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 
                 <div className="form-group"><label>Marca</label><input type="text" required value={formData.marca} onChange={e => setFormData({...formData, marca: e.target.value})} /></div>
                 <div className="form-group"><label>Modelo do Aparelho</label><input type="text" required value={formData.aparelho} onChange={e => setFormData({...formData, aparelho: e.target.value})} /></div>
@@ -735,7 +975,11 @@ export default function OrdensServico() {
                 <div className="form-group">
                   <label style={{display: 'flex', justifyContent: 'space-between'}}>
                     Senha de Desbloqueio
+<<<<<<< HEAD
                     <select value={formData.tipo_senha} onChange={e => setFormData({...formData, tipo_senha: e.target.value, senha: ''})} style={{fontSize: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-primary)'}}>
+=======
+                    <select value={formData.type_senha || formData.tipo_senha} onChange={e => setFormData({...formData, tipo_senha: e.target.value, senha: ''})} style={{fontSize: '12px', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--color-primary)'}}>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
                       <option value="texto">Texto/PIN</option>
                       <option value="padrao">Desenho (Padrão)</option>
                     </select>
@@ -777,6 +1021,7 @@ export default function OrdensServico() {
 
               <div className="modal-actions">
                 <button type="button" className="btn-cancel" onClick={() => setModalCadastroAberto(false)}>Cancelar</button>
+<<<<<<< HEAD
                 <button type="submit" className="btn-save">Salvar Ordem de Serviço</button>
               </div>
             </form>
@@ -885,6 +1130,9 @@ export default function OrdensServico() {
                 <button type="submit" className="btn-save">
                   Salvar e Selecionar Cliente
                 </button>
+=======
+                <button type="submit" className="btn-save">Salvar Ordem Completa</button>
+>>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
               </div>
             </form>
           </div>
