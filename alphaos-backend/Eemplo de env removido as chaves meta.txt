@@ -1,0 +1,5 @@
+
+# Config Banco de Dados
+DB_USER=postgres
+DB_PASSWORD=1234
+DB_NAME=alphaos_db
