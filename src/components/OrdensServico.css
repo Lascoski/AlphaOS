@@ -56,7 +56,6 @@
 }
 
 /* =========================================
-<<<<<<< HEAD
    GRID DE CARDS (BOXES) DAS OS
 ========================================= */
 .os-cards-grid {
@@ -75,6 +74,7 @@
   justify-content: space-between;
   transition: transform 0.2s, box-shadow 0.2s;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .os-card-box:hover {
@@ -143,74 +143,13 @@
   gap: 8px;
 }
 
-.btn-card-view {
-  background-color: var(--color-primary, #2563eb);
-  color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm, 6px);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-card-view:hover {
-  background-color: #1d4ed8;
-=======
-   TABELA E CONTAINER (CORREÇÃO DO SCROLL)
-========================================= */
-.os-table-container {
-  overflow-x: auto;
-  overflow-y: visible !important; /* Libera o eixo vertical para o menu não ser cortado */
-  background: white;
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--color-border, #e5e7eb);
-}
-
-.os-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 14px;
-}
-
-.os-table th {
-  background-color: #f9fafb;
-  padding: 12px 16px;
-  font-weight: 600;
-  color: var(--color-text-secondary, #4b5563);
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-}
-
-.os-table td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
-  color: var(--color-text-primary, #1f2937);
-  vertical-align: middle;
-}
-
-.os-device {
-  font-weight: 600;
-}
-
-.os-defect {
-  font-size: 12px;
-  color: var(--color-text-secondary, #6b7280);
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
-}
-
 /* =========================================
    STATUS BADGES
 ========================================= */
 .status-badge {
   padding: 4px 10px;
   border-radius: 99px;
-<<<<<<< HEAD
   font-size: 11px;
-=======
-  font-size: 12px;
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
   font-weight: 600;
   display: inline-block;
 }
@@ -231,78 +170,6 @@
 }
 
 /* =========================================
-<<<<<<< HEAD
-   MENU DE AÇÕES
-=======
-   MENU DE AÇÕES (3 PONTINHOS)
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
-========================================= */
-.action-container {
-  position: relative;
-  display: inline-block;
-}
-
-.action-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-secondary, #6b7280);
-}
-
-.action-btn:hover {
-  background-color: var(--color-gray-100, #f3f4f6);
-}
-
-.dropdown-menu {
-  position: absolute;
-  right: 0;
-<<<<<<< HEAD
-  bottom: 100%;
-  background-color: white;
-  border: 1px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius-md, 8px);
-  z-index: 9999;
-  min-width: 180px;
-  padding: 4px 0;
-  margin-bottom: 4px;
-=======
-  top: 100%;
-  background-color: white;
-  border: 1px solid var(--color-border, #e5e7eb);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  border-radius: var(--radius-md, 8px);
-  z-index: 9999; /* Camada mais alta para flutuar perfeitamente */
-  min-width: 180px;
-  padding: 4px 0;
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
-}
-
-.dropdown-item {
-  width: 100%;
-  padding: 8px 16px;
-  text-align: left;
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-primary, #1f2937);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.dropdown-item:hover {
-  background-color: var(--color-gray-50, #f9fafb);
-}
-
-/* =========================================
    MODAIS E FORMULÁRIOS
 ========================================= */
 .modal-overlay {
@@ -317,10 +184,7 @@
   align-items: center;
   z-index: 10000;
   padding: 16px;
-<<<<<<< HEAD
   box-sizing: border-box;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .modal-content {
@@ -328,17 +192,11 @@
   border-radius: var(--radius-lg, 12px);
   padding: 24px;
   width: 100%;
-<<<<<<< HEAD
   max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
-=======
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .view-header-client {
@@ -358,35 +216,18 @@
   font-weight: 700;
 }
 
-<<<<<<< HEAD
-=======
-.btn-edit-client {
-  background-color: white;
-  border: 1px solid var(--color-border, #e5e7eb);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm, 6px);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-<<<<<<< HEAD
   width: 100%;
   box-sizing: border-box;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
-<<<<<<< HEAD
   width: 100%;
   box-sizing: border-box;
 }
@@ -395,12 +236,6 @@
   grid-column: 1 / -1;
   width: 100%;
   box-sizing: border-box;
-=======
-}
-
-.form-group.form-full {
-  grid-column: span 2;
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .form-group label {
@@ -416,40 +251,16 @@
   border-radius: var(--radius-md, 8px);
   font-size: 14px;
   outline: none;
-<<<<<<< HEAD
   width: 100%;
   box-sizing: border-box;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .form-group input:focus {
   border-color: var(--color-primary, #2563eb);
 }
 
-<<<<<<< HEAD
 /* =========================================
    ESTEIRA DE PROGRESSO (STEPPER)
-=======
-.input-with-button {
-  display: flex;
-  gap: 8px;
-}
-
-.btn-buscar-cnpj {
-  background-color: var(--color-gray-100, #f3f4f6);
-  border: 1px solid var(--color-border, #e5e7eb);
-  padding: 0 12px;
-  border-radius: var(--radius-md, 8px);
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-/* =========================================
-   ESTEIRA DE PROGRESSO (STEPPER) E APROVAÇÕES
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 ========================================= */
 .stepper-container {
   display: flex;
@@ -521,11 +332,6 @@
   align-items: center;
   border-top: 1px solid var(--color-border, #e5e7eb);
   padding-top: 16px;
-<<<<<<< HEAD
-=======
-  flex-wrap: wrap;
-  gap: 12px;
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .btn-step {
@@ -547,23 +353,8 @@
   color: white;
 }
 
-<<<<<<< HEAD
 /* =========================================
    PADRÃO DE DESBLOQUEIO
-=======
-.approval-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.btn-aprovar { background-color: #059669; color: white; }
-.btn-recusar { background-color: #d97706; color: white; }
-.btn-descartar { background-color: #dc2626; color: white; }
-
-/* =========================================
-   PADRÃO DE DESBLOQUEIO (DESENHO)
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 ========================================= */
 .pattern-lock-container {
   display: flex;
@@ -573,11 +364,8 @@
   padding: 16px;
   border-radius: var(--radius-md, 8px);
   border: 1px solid var(--color-border, #e5e7eb);
-<<<<<<< HEAD
   grid-column: 1 / -1;
   box-sizing: border-box;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .pattern-grid {
@@ -621,7 +409,6 @@
    AVARIAS E CHECKBOXES
 ========================================= */
 .checkbox-group {
-<<<<<<< HEAD
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -655,23 +442,6 @@
   height: 16px;
   cursor: pointer;
   accent-color: var(--color-primary);
-=======
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 8px;
-  background-color: #f9fafb;
-  padding: 12px;
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--color-border, #e5e7eb);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  cursor: pointer;
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .modal-actions {
@@ -679,10 +449,7 @@
   justify-content: flex-end;
   gap: 12px;
   margin-top: 24px;
-<<<<<<< HEAD
   grid-column: 1 / -1;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }
 
 .btn-cancel {
@@ -702,7 +469,6 @@
   border-radius: var(--radius-md, 8px);
   font-weight: 600;
   cursor: pointer;
-<<<<<<< HEAD
 }
 
 /* =========================================
@@ -789,7 +555,6 @@
 }
 
 .cliente-selecionado-info h4 {
-  name: 0;
   margin: 0 0 4px 0;
   color: var(--color-text-primary);
 }
@@ -808,6 +573,4 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 }

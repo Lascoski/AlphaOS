@@ -44,7 +44,6 @@ app.get('/api/ordens', async (req, res) => {
 });
 
 // ==========================================
-<<<<<<< HEAD
 // ROTA GET: Buscar todos os Clientes com métricas
 // ==========================================
 app.get('/api/clientes', async (req, res) => {
@@ -73,8 +72,6 @@ app.get('/api/clientes', async (req, res) => {
 app.post('/api/clientes', async (req, res) => {
   let { nome, telefone, cpf, rua, numero, bairro, cidade, data_nascimento } = req.body;
   
-  // Se o CPF vier vazio (só espaços ou nada), convertemos para NULL
-  // Isso evita que o banco ache que dois CPFs "em branco" são duplicados
   cpf = cpf ? cpf.trim() : null;
   if (cpf === '') cpf = null;
 
@@ -89,7 +86,6 @@ app.post('/api/clientes', async (req, res) => {
     const result = await pool.query(query, values);
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    // 23505 é o código de erro do PostgreSQL para violação de UNIQUE
     if (err.code === '23505') {
       return res.status(400).json({ error: 'Este CPF/CNPJ já está cadastrado no sistema.' });
     }
@@ -134,44 +130,24 @@ app.put('/api/clientes/:id', async (req, res) => {
 });
 
 // ==========================================
-=======
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 // ROTA POST: Criar uma nova Ordem de Serviço (Começando do 001)
 // ==========================================
 app.post('/api/ordens', async (req, res) => {
   const { 
-<<<<<<< HEAD
     cliente_id, marca, aparelho, cor, senha, defeito, defeito_diagnosticado,
-=======
-    cliente_nome, telefone, cpf, rua, numero, bairro, cidade, 
-    marca, aparelho, cor, senha, defeito, defeito_diagnosticado,
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     acessorios, avarias, observacoes, valor_estimado 
   } = req.body;
 
   try {
     await pool.query('BEGIN');
 
-<<<<<<< HEAD
-    // 1. Gera o próximo número sequencial da OS a partir de 001[cite: 3]
-=======
-    // 1. Cria o cliente e pega o ID gerado
-    const insertCliente = 'INSERT INTO clientes (nome, telefone, cpf, rua, numero, bairro, cidade) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id';
-    const clienteResult = await pool.query(insertCliente, [cliente_nome, telefone, cpf, rua, numero, bairro, cidade]);
-    const clienteId = clienteResult.rows[0].id;
-
-    // 2. Gera o próximo número sequencial da OS a partir de 001
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
+    // 1. Gera o próximo número sequencial da OS a partir de 001
     const countResult = await pool.query('SELECT COUNT(*) FROM ordens_servico');
     const proximoNumero = parseInt(countResult.rows[0].count) + 1;
     const numeroFormatado = String(proximoNumero).padStart(3, '0');
     const numeroOs = `OS-${numeroFormatado}`;
 
-<<<<<<< HEAD
     // 2. Cria a Ordem de Serviço vinculada ao cliente existente (cliente_id)
-=======
-    // 3. Cria a Ordem de Serviço vinculada ao cliente
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     const insertOs = `
       INSERT INTO ordens_servico (
         numero_os, cliente_id, marca, aparelho, cor, senha, 
@@ -180,14 +156,10 @@ app.post('/api/ordens', async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'Avaliação Inicial') 
       RETURNING *
     `;
-<<<<<<< HEAD
     const valoresOs = [
       numeroOs, cliente_id, marca, aparelho, cor, senha, 
       defeito, defeito_diagnosticado || '', acessorios, avarias, observacoes, valor_estimado
     ];
-=======
-    const valoresOs = [numeroOs, clienteId, marca, aparelho, cor, senha, defeito, defeito_diagnosticado || '', acessorios, avarias, observacoes, valor_estimado];
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     
     const osResult = await pool.query(insertOs, valoresOs);
 
@@ -225,21 +197,13 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
       return res.status(400).json({ error: 'O cliente desta OS não possui telefone cadastrado.' });
     }
 
-<<<<<<< HEAD
-    // Limpa o telefone e garante o +55 permanente de forma inteligente[cite: 3]
-=======
     // Limpa o telefone e garante o +55 permanente de forma inteligente
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     let telefoneLimpo = telefone.replace(/\D/g, '');
     if (!telefoneLimpo.startsWith('55')) {
       telefoneLimpo = '55' + telefoneLimpo;
     }
 
-<<<<<<< HEAD
-    // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---[cite: 3]
-=======
     // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     const data = {
       messaging_product: 'whatsapp',
       to: telefoneLimpo, 
@@ -250,11 +214,7 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
       }
     };
 
-<<<<<<< HEAD
-    /* --- PRONTO PARA QUANDO O SEU TEMPLATE DE ORÇAMENTO FOR APROVADO ---[cite: 3]
-=======
     /* --- PRONTO PARA QUANDO O SEU TEMPLATE DE ORÇAMENTO FOR APROVADO ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     const data = {
       messaging_product: 'whatsapp',
       to: telefoneLimpo, 
@@ -266,15 +226,9 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
           {
             type: 'body',
             parameters: [
-<<<<<<< HEAD
-              { type: 'text', text: numero_os },                                  // {{1}}[cite: 3]
-              { type: 'text', text: '90 dias' },                                  // {{2}}[cite: 3]
-              { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` } // {{3}}[cite: 3]
-=======
-              { type: 'text', text: numero_os },                                  // {{1}}
-              { type: 'text', text: '90 dias' },                                  // {{2}}
+              { type: 'text', text: numero_os },                           // {{1}}
+              { type: 'text', text: '90 dias' },                           // {{2}}
               { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` } // {{3}}
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
             ]
           }
         ]
@@ -352,17 +306,10 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
   const { status } = req.body;
 
   try {
-<<<<<<< HEAD
-    // 1. Atualiza o status no banco de dados com segurança[cite: 3]
-    await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
-
-    // Busca os dados da OS e do cliente (sem colunas inexistentes)[cite: 3]
-=======
     // 1. Atualiza o status no banco de dados com segurança
     await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
 
     // Busca os dados da OS e do cliente (sem colunas inexistentes)
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     const query = `
       SELECT os.numero_os, os.aparelho, os.defeito_diagnosticado, os.valor_estimado, c.telefone, c.nome 
       FROM ordens_servico os
@@ -382,15 +329,9 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
 
         let dataTemplate = null;
 
-<<<<<<< HEAD
-        // 2. Se mudou para "Aprovação do Cliente", dispara o template de orçamento[cite: 3]
-        if (status === 'Aprovação do Cliente') {
-          // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---[cite: 3]
-=======
         // 2. Se mudou para "Aprovação do Cliente", dispara o template de orçamento
         if (status === 'Aprovação do Cliente') {
           // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           dataTemplate = {
             messaging_product: 'whatsapp',
             to: telefoneLimpo, 
@@ -401,11 +342,7 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
             }
           };
 
-<<<<<<< HEAD
-          /* --- PRONTO PARA O SEU TEMPLATE DE ORÇAMENTO FUTURO ---[cite: 3]
-=======
           /* --- PRONTO PARA O SEU TEMPLATE DE ORÇAMENTO FUTURO ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           dataTemplate = {
             messaging_product: 'whatsapp',
             to: telefoneLimpo, 
@@ -428,15 +365,9 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
           ----------------------------------------------------- */
         }
 
-<<<<<<< HEAD
-        // 3. Se mudou para "Pronto (Avisar Cliente)", dispara o template de retirada[cite: 3]
-        else if (status === 'Pronto (Avisar Cliente)') {
-          // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---[cite: 3]
-=======
         // 3. Se mudou para "Pronto (Avisar Cliente)", dispara o template de retirada
         else if (status === 'Pronto (Avisar Cliente)') {
           // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           dataTemplate = {
             messaging_product: 'whatsapp',
             to: telefoneLimpo, 
@@ -447,11 +378,7 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
             }
           };
 
-<<<<<<< HEAD
-          /* --- PRONTO PARA O SEU TEMPLATE DE RETIRADA FUTURO ---[cite: 3]
-=======
           /* --- PRONTO PARA O SEU TEMPLATE DE RETIRADA FUTURO ---
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
           dataTemplate = {
             messaging_product: 'whatsapp',
             to: telefoneLimpo, 
@@ -463,17 +390,10 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
                 {
                   type: 'body',
                   parameters: [
-<<<<<<< HEAD
-                    { type: 'text', text: nome },                                         // {{1}}[cite: 3]
-                    { type: 'text', text: aparelho },                                     // {{2}}[cite: 3]
-                    { type: 'text', text: defeito_diagnosticado || 'Reparo concluído' },  // {{3}}[cite: 3]
-                    { type: 'text', text: Number(valor_estimado || 0).toFixed(2)}           // {{4}}[cite: 3]
-=======
-                    { type: 'text', text: nome },                                         // {{1}}
-                    { type: 'text', text: aparelho },                                     // {{2}}
+                    { type: 'text', text: nome },                                    // {{1}}
+                    { type: 'text', text: aparelho },                                    // {{2}}
                     { type: 'text', text: defeito_diagnosticado || 'Reparo concluído' },  // {{3}}
-                    { type: 'text', text: Number(valor_estimado || 0).toFixed(2)}           // {{4}}
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
+                    { type: 'text', text: Number(valor_estimado || 0).toFixed(2)}          // {{4}}
                   ]
                 }
               ]
@@ -482,11 +402,7 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
           ----------------------------------------------------- */
         }
 
-<<<<<<< HEAD
-        // Se houver um template mapeado para o status, executa o envio automático em background[cite: 3]
-=======
         // Se houver um template mapeado para o status, executa o envio automático em background
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
         if (dataTemplate) {
           fetch(`https://graph.facebook.com/v18.0/${process.env.META_PHONE_ID}/messages`, {
             method: 'POST',
@@ -517,36 +433,16 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
 });
 
 // ==========================================
-<<<<<<< HEAD
 // ROTA PUT: Editar Dados da OS e Checklist de Qualidade
-=======
-// ROTA PUT: Editar Dados da OS, Cliente e Checklist de Qualidade
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
 // ==========================================
 app.put('/api/ordens/:id', async (req, res) => {
   const { id } = req.params;
   const { 
-<<<<<<< HEAD
-=======
-    cliente_id, cliente_nome, telefone, cpf, rua, numero, bairro, cidade, 
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     marca, aparelho, cor, senha, defeito, defeito_diagnosticado, 
     acessorios, avarias, observacoes, valor_estimado, testes_qualidade 
   } = req.body;
 
   try {
-<<<<<<< HEAD
-=======
-    await pool.query('BEGIN');
-
-    const updateCliente = `
-      UPDATE clientes 
-      SET nome = $1, telefone = $2, cpf = $3, rua = $4, numero = $5, bairro = $6, cidade = $7 
-      WHERE id = $8
-    `;
-    await pool.query(updateCliente, [cliente_nome, telefone, cpf, rua, numero, bairro, cidade, cliente_id]);
-
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     const updateOs = `
       UPDATE ordens_servico 
       SET marca = $1, aparelho = $2, cor = $3, senha = $4, defeito = $5, 
@@ -559,15 +455,8 @@ app.put('/api/ordens/:id', async (req, res) => {
       acessorios, avarias, observacoes, valor_estimado, testes_qualidade || '', id
     ]);
 
-<<<<<<< HEAD
     res.json({ message: 'Ordem atualizada com sucesso!' });
   } catch (err) {
-=======
-    await pool.query('COMMIT');
-    res.json({ message: 'Ordem atualizada com sucesso!' });
-  } catch (err) {
-    await pool.query('ROLLBACK');
->>>>>>> 0042aed5dacb8571902e270d7f02b1107c13c804
     console.error(err.message);
     res.status(500).json({ error: 'Erro ao editar a Ordem de Serviço' });
   }
