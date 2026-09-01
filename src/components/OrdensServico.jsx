@@ -938,7 +938,12 @@ export default function OrdensServico() {
                   <input 
                     type="date" 
                     value={formClienteData.data_nascimento} 
-                    onChange={e => setFormClienteData({...formClienteData, data_nascimento: e.target.value})} 
+                    onChange={e =>
+                      setFormClienteData({
+                        ...formClienteData,
+                        cpf: formatarCpfCnpj(e.target.value)
+                      })
+                    } 
                   />
                 </div>
 
@@ -957,7 +962,12 @@ export default function OrdensServico() {
                   <input 
                     type="text" 
                     value={formClienteData.telefone} 
-                    onChange={e => setFormClienteData({...formClienteData, telefone: e.target.value})} 
+                    onChange={e =>
+                      setFormClienteData({
+                        ...formClienteData,
+                        telefone: formatarTelefone(e.target.value)
+                      })
+                    } 
                   />
                 </div>
                 
