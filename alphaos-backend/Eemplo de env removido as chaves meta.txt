@@ -1,3 +1,10 @@
+# Credencias da Meta
+META_PHONE_ID=
+META_BUSINESS_ACCOUNT_ID=
+META_ACCESS_TOKEN=
+
+#Gemini Key
+GEMINI_API_KEY=
 
 # Config Banco de Dados
 DB_USER=postgres

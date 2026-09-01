@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Plus, X, Smartphone, User, Trash2 } from 'lucide-react'
+import { Search, Plus, X, Smartphone, User, Trash2, Camera, CheckCircle, AlertCircle } from 'lucide-react'
 import Header from './Header' 
 import './OrdensServico.css'
 
@@ -23,6 +23,18 @@ export default function OrdensServico() {
     cpf: '', data_nascimento: '', nome: '', telefone: '', 
     rua: '', numero: '', bairro: '', cidade: ''
   })
+
+  // Estados do Modal da Câmera (Reconhecimento por IA)
+  const [modalCameraAberto, setModalCameraAberto] = useState(false)
+  const [streamCamera, setStreamCamera] = useState(null)
+  const [analisandoFoto, setAnalisandoFoto] = useState(false)
+
+  // Sistema de Toast (Popup sutil)
+  const [toast, setToast] = useState({ visivel: false, mensagem: '', tipo: 'sucesso' })
+  const mostrarToast = (mensagem, tipo = 'sucesso') => {
+    setToast({ visivel: true, mensagem, tipo })
+    setTimeout(() => setToast(prev => ({ ...prev, visivel: false })), 3500)
+  }
 
   const estadoInicial = {
     marca: '', aparelho: '', cor: '', senha: '', tipo_senha: 'texto',
@@ -76,6 +88,71 @@ export default function OrdensServico() {
   }
 
   useEffect(() => { buscarDados() }, [])
+
+  // ==========================================
+  // FUNÇÕES DA CÂMERA E IA (GOOGLE GEMINI)
+  // ==========================================
+  const abrirCamera = async () => {
+    setModalCameraAberto(true)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      setStreamCamera(stream)
+      const videoElement = document.getElementById('webcam-video')
+      if (videoElement) {
+        videoElement.srcObject = stream
+      }
+    } catch (err) {
+      console.error("Erro ao acessar câmera:", err)
+      mostrarToast("Não foi possível acessar a câmera do computador.", "erro")
+      setModalCameraAberto(false)
+    }
+  }
+
+  const fecharCamera = () => {
+    if (streamCamera) {
+      streamCamera.getTracks().forEach(track => track.stop())
+    }
+    setStreamCamera(null)
+    setModalCameraAberto(false)
+  }
+
+  const capturarEAnalisarFoto = async () => {
+    const videoElement = document.getElementById('webcam-video')
+    if (!videoElement) return
+    
+    const canvas = document.createElement('canvas')
+    canvas.width = videoElement.videoWidth || 640
+    canvas.height = videoElement.videoHeight || 480
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height)
+    
+    const imagemBase64 = canvas.toDataURL('image/jpeg')
+
+    fecharCamera()
+    setAnalisandoFoto(true)
+    mostrarToast("Analisando o aparelho com Inteligência Artificial...", "sucesso")
+
+    try {
+      const res = await fetch('http://localhost:3001/api/reconhecer-aparelho', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagem: imagemBase64 })
+      })
+
+      const data = await res.json()
+      if (res.ok && data.modelo) {
+        setFormData(prev => ({ ...prev, aparelho: data.modelo }))
+        mostrarToast(`Aparelho identificado: ${data.modelo}`, "sucesso")
+      } else {
+        mostrarToast("A IA não conseguiu identificar com clareza. Digite manualmente.", "erro")
+      }
+    } catch (err) {
+      console.error(err)
+      mostrarToast("Erro de conexão ao analisar imagem.", "erro")
+    } finally {
+      setAnalisandoFoto(false)
+    }
+  }
 
   const buscarCNPJCliente = async () => {
     const cnpjLimpo = formClienteData.cpf.replace(/\D/g, ''); 
@@ -385,7 +462,7 @@ export default function OrdensServico() {
           })}
         </div>
 
-        {/* EXIBIÇÃO EM FORMATO DE BOX (CLICÁVEL PARA ABRIR A FICHA) */}
+        {/* EXIBIÇÃO EM FORMATO DE BOX */}
         {carregando ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--color-text-secondary)' }}>Carregando Ordens de Serviço...</div>
         ) : ordensFiltradas.length === 0 ? (
@@ -710,7 +787,7 @@ export default function OrdensServico() {
                               <strong style={{ color: 'var(--color-text-primary)' }}>{c.nome}</strong>
                               <span style={{ fontSize: '13px', color: 'var(--color-text-secondary)' }}>{c.telefone || 'Sem número'}</span>
                             </li>
-                        ))}
+                          ))}
                         {clientes.filter(c => c.nome.toLowerCase().includes(buscaCliente.toLowerCase())).length === 0 && (
                           <li style={{ color: 'var(--color-gray-500)', cursor: 'default', justifyContent: 'center' }}>
                             Nenhum cliente encontrado.
@@ -721,7 +798,7 @@ export default function OrdensServico() {
                   </div>
                 )}
                 
-                {/* --- SEÇÃO DO APARELHO --- */}
+                {/* --- SEÇÃO DO APARELHO COM IA SCAN --- */}
                 <div className="form-group form-full" style={{ marginTop: '16px' }}>
                   <h3 style={{fontSize: '14px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px', margin: '0 0 12px 0'}}>
                     Identificação e Triagem
@@ -729,7 +806,34 @@ export default function OrdensServico() {
                 </div>
 
                 <div className="form-group"><label>Marca</label><input type="text" required value={formData.marca} onChange={e => setFormData({...formData, marca: e.target.value})} /></div>
-                <div className="form-group"><label>Modelo do Aparelho</label><input type="text" required value={formData.aparelho} onChange={e => setFormData({...formData, aparelho: e.target.value})} /></div>
+                
+                {/* MODELO DO APARELHO + BOTÃO IA SCAN */}
+                <div className="form-group">
+                  <label>Modelo do Aparelho</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="text" 
+                      required 
+                      placeholder="Ex: iPhone 13..." 
+                      value={formData.aparelho} 
+                      onChange={e => setFormData({...formData, aparelho: e.target.value})} 
+                      style={{ flex: 1 }}
+                    />
+                    <button 
+                      type="button" 
+                      onClick={abrirCamera}
+                      disabled={analisandoFoto}
+                      style={{ 
+                        background: '#3b82f6', color: 'white', border: 'none', borderRadius: 'var(--radius-md)', 
+                        padding: '0 14px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: '600', fontSize: '13px', whiteSpace: 'nowrap' 
+                      }}
+                      title="Identificar aparelho com Inteligência Artificial"
+                    >
+                      <Camera size={16} /> {analisandoFoto ? 'Analisando...' : 'IA Scan'}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="form-group"><label>Cor do Aparelho</label><input type="text" required value={formData.cor} onChange={e => setFormData({...formData, cor: e.target.value})} /></div>
                 
                 <div className="form-group">
@@ -780,6 +884,22 @@ export default function OrdensServico() {
                 <button type="submit" className="btn-save">Salvar Ordem de Serviço</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DA WEBCAM (IA SCAN) */}
+      {modalCameraAberto && (
+        <div className="modal-overlay" style={{ zIndex: 11005 }}>
+          <div className="modal-content" style={{ maxWidth: '500px', textAlign: 'center' }}>
+            <h3 style={{ marginBottom: '16px' }}>Mostre a traseira do aparelho para a câmera</h3>
+            <div style={{ background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '16px' }}>
+              <video id="webcam-video" autoPlay playsInline style={{ width: '100%', height: 'auto', display: 'block' }}></video>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+              <button type="button" className="btn-cancel" onClick={fecharCamera}>Cancelar</button>
+              <button type="button" className="btn-save" onClick={capturarEAnalisarFoto}>📸 Capturar e Identificar</button>
+            </div>
           </div>
         </div>
       )}
@@ -890,6 +1010,12 @@ export default function OrdensServico() {
           </div>
         </div>
       )}
+
+      {/* TOAST POPUP */}
+      <div className={`toast-notification ${toast.visivel ? 'show' : ''} ${toast.tipo}`}>
+        {toast.tipo === 'sucesso' ? <CheckCircle size={20} color="#10b981" /> : <AlertCircle size={20} color="#ef4444" />}
+        <span>{toast.mensagem}</span>
+      </div>
     </>
   )
 }

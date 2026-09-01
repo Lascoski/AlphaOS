@@ -38,24 +38,28 @@ app.get('/api/ordens', async (req, res) => {
     const result = await pool.query(query);
     res.json(result.rows);
   } catch (err) {
-    console.error(err.message);
+    console.error('❌ Erro ao buscar ordens:', err.message);
     res.status(500).json({ error: 'Erro interno no servidor' });
   }
 });
 
 // ==========================================
-// ROTA GET: Buscar todos os Clientes com métricas
+// ROTA GET: Buscar todos os Clientes com métricas atualizadas
 // ==========================================
 app.get('/api/clientes', async (req, res) => {
   try {
     const query = `
       SELECT 
         c.*,
-        COALESCE(SUM(os.valor_estimado), 0) as valor_gasto,
-        MAX(os.data_entrada) as ultima_compra
+        COALESCE(
+          (SELECT SUM(valor_estimado) FROM ordens_servico WHERE cliente_id = c.id AND status = 'Finalizado') +
+          (SELECT SUM(valor_total) FROM vendas WHERE cliente_id = c.id), 0
+        ) as valor_gasto,
+        GREATEST(
+          (SELECT MAX(data_entrada) FROM ordens_servico WHERE cliente_id = c.id),
+          (SELECT MAX(data_venda) FROM vendas WHERE cliente_id = c.id)
+        ) as ultima_compra
       FROM clientes c
-      LEFT JOIN ordens_servico os ON c.id = os.cliente_id
-      GROUP BY c.id
       ORDER BY c.nome ASC;
     `;
     const result = await pool.query(query);
@@ -114,11 +118,9 @@ app.put('/api/clientes/:id', async (req, res) => {
     const values = [nome, telefone, cpf, rua, numero, bairro, cidade, data_nascimento || null, id];
     
     const result = await pool.query(query, values);
-    
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Cliente não encontrado.' });
     }
-    
     res.json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') {
@@ -130,7 +132,7 @@ app.put('/api/clientes/:id', async (req, res) => {
 });
 
 // ==========================================
-// ROTA POST: Criar uma nova Ordem de Serviço (Começando do 001)
+// ROTA POST: Criar uma nova Ordem de Serviço (Blindada contra duplicação de exclusão)
 // ==========================================
 app.post('/api/ordens', async (req, res) => {
   const { 
@@ -141,13 +143,12 @@ app.post('/api/ordens', async (req, res) => {
   try {
     await pool.query('BEGIN');
 
-    // 1. Gera o próximo número sequencial da OS a partir de 001
-    const countResult = await pool.query('SELECT COUNT(*) FROM ordens_servico');
-    const proximoNumero = parseInt(countResult.rows[0].count) + 1;
+    // Pega o maior ID da tabela para evitar conflito se houver exclusões anteriores
+    const maxIdResult = await pool.query('SELECT COALESCE(MAX(id), 0) as max_id FROM ordens_servico');
+    const proximoNumero = parseInt(maxIdResult.rows[0].max_id) + 1;
     const numeroFormatado = String(proximoNumero).padStart(3, '0');
     const numeroOs = `OS-${numeroFormatado}`;
 
-    // 2. Cria a Ordem de Serviço vinculada ao cliente existente (cliente_id)
     const insertOs = `
       INSERT INTO ordens_servico (
         numero_os, cliente_id, marca, aparelho, cor, senha, 
@@ -168,16 +169,175 @@ app.post('/api/ordens', async (req, res) => {
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error('Erro ao criar OS:', err.message);
-    res.status(500).json({ error: 'Erro ao criar Ordem de Serviço' });
+    res.status(500).json({ error: 'Erro ao criar Ordem de Serviço: ' + err.message });
   }
 });
 
 // ==========================================
-// ROTA POST: Enviar Orçamento via WhatsApp Oficial (Meta API) - Rota Manual
+// ROTAS DE PRODUTOS / ESTOQUE
+// ==========================================
+app.get('/api/produtos', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM produtos ORDER BY nome ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar produtos:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar estoque' });
+  }
+});
+
+app.post('/api/produtos', async (req, res) => {
+  const { nome, preco, quantidade_estoque } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO produtos (nome, preco, quantidade_estoque) VALUES ($1, $2, $3) RETURNING *',
+      [nome, preco, quantidade_estoque || 0]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Erro ao criar produto:', err.message);
+    res.status(500).json({ error: 'Erro ao cadastrar produto' });
+  }
+});
+
+// ==========================================
+// ROTAS DE VENDAS
+// ==========================================
+app.get('/api/vendas', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        v.*, 
+        c.nome as cliente_nome, 
+        c.telefone,
+        os.numero_os
+      FROM vendas v
+      JOIN clientes c ON v.cliente_id = c.id
+      LEFT JOIN ordens_servico os ON v.os_id = os.id
+      ORDER BY v.data_venda DESC;
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao buscar vendas:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar vendas' });
+  }
+});
+
+app.post('/api/vendas', async (req, res) => {
+  const { cliente_id, os_id, valor_total, meio_pagamento, itens } = req.body;
+  
+  try {
+    await pool.query('BEGIN');
+
+    const insertVenda = `
+      INSERT INTO vendas (cliente_id, os_id, valor_total, meio_pagamento) 
+      VALUES ($1, $2, $3, $4) 
+      RETURNING *;
+    `;
+    const vendaResult = await pool.query(insertVenda, [cliente_id, os_id || null, valor_total, meio_pagamento]);
+    const vendaId = vendaResult.rows[0].id;
+
+    if (itens && Array.isArray(itens) && itens.length > 0) {
+      for (let item of itens) {
+        let produtoFinalId = item.produto_id;
+
+        if (item.isManual || typeof item.produto_id === 'string') {
+          const prodRes = await pool.query(
+            'INSERT INTO produtos (nome, preco, quantidade_estoque) VALUES ($1, $2, $3) RETURNING id',
+            [`(Avulso) ${item.nome}`, item.preco_unitario, 0]
+          );
+          produtoFinalId = prodRes.rows[0].id;
+        }
+
+        await pool.query(
+          `INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario) VALUES ($1, $2, $3, $4)`,
+          [vendaId, produtoFinalId, item.quantidade, item.preco_unitario]
+        );
+
+        if (!item.isManual && typeof item.produto_id !== 'string') {
+          await pool.query(
+            `UPDATE produtos SET quantidade_estoque = quantidade_estoque - $1 WHERE id = $2`,
+            [item.quantidade, produtoFinalId]
+          );
+        }
+      }
+    }
+
+    if (os_id) {
+      await pool.query(`UPDATE ordens_servico SET status = 'Finalizado' WHERE id = $1`, [os_id]);
+    }
+
+    await pool.query('COMMIT');
+    res.status(201).json(vendaResult.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error('Erro ao registrar venda:', err.message);
+    res.status(500).json({ error: 'Erro ao registrar venda' });
+  }
+});
+
+app.delete('/api/vendas/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    await pool.query('BEGIN');
+    await pool.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
+    await pool.query('DELETE FROM vendas WHERE id = $1', [id]);
+    await pool.query('COMMIT');
+    res.json({ message: 'Venda cancelada e excluída com sucesso!' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error("Erro ao deletar venda:", err.message);
+    res.status(500).json({ error: 'Erro ao deletar venda e seus itens.' });
+  }
+});
+
+app.put('/api/vendas/:id', async (req, res) => {
+  const { id } = req.params;
+  const { cliente_id, valor_total, meio_pagamento, itens } = req.body;
+
+  try {
+    await pool.query('BEGIN');
+    await pool.query(
+      'UPDATE vendas SET cliente_id = $1, valor_total = $2, meio_pagamento = $3 WHERE id = $4',
+      [cliente_id, valor_total, meio_pagamento, id]
+    );
+    await pool.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
+
+    if (itens && itens.length > 0) {
+      for (let item of itens) {
+        let produtoFinalId = item.produto_id;
+
+        if (item.isManual || typeof item.produto_id === 'string') {
+          const prodRes = await pool.query(
+            'INSERT INTO produtos (nome, preco, quantidade_estoque) VALUES ($1, $2, $3) RETURNING id',
+            [`(Avulso) ${item.nome}`, item.preco_unitario, 0]
+          );
+          produtoFinalId = prodRes.rows[0].id;
+        }
+
+        await pool.query(
+          'INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario) VALUES ($1, $2, $3, $4)',
+          [id, produtoFinalId, item.quantidade, item.preco_unitario]
+        );
+      }
+    }
+
+    await pool.query('COMMIT');
+    res.json({ message: 'Venda e itens atualizados com sucesso!' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error("Erro ao atualizar venda:", err.message);
+    res.status(500).json({ error: 'Erro ao atualizar os dados da venda.' });
+  }
+});
+
+// ==========================================
+// ROTAS DE WHATSAPP / STATUS / EXCLUIR OS
 // ==========================================
 app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
   const { id } = req.params;
-
   try {
     const query = `
       SELECT os.numero_os, os.valor_estimado, c.telefone, c.nome 
@@ -186,35 +346,14 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
       WHERE os.id = $1
     `;
     const result = await pool.query(query, [id]);
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Ordem de serviço não encontrada.' });
-    }
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Ordem de serviço não encontrada.' });
 
     const { numero_os, valor_estimado, telefone } = result.rows[0];
+    if (!telefone) return res.status(400).json({ error: 'O cliente não possui telefone cadastrado.' });
 
-    if (!telefone) {
-      return res.status(400).json({ error: 'O cliente desta OS não possui telefone cadastrado.' });
-    }
-
-    // Limpa o telefone e garante o +55 permanente de forma inteligente
     let telefoneLimpo = telefone.replace(/\D/g, '');
-    if (!telefoneLimpo.startsWith('55')) {
-      telefoneLimpo = '55' + telefoneLimpo;
-    }
+    if (!telefoneLimpo.startsWith('55')) telefoneLimpo = '55' + telefoneLimpo;
 
-    // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
-    const data = {
-      messaging_product: 'whatsapp',
-      to: telefoneLimpo, 
-      type: 'template',
-      template: {
-        name: 'hello_world', 
-        language: { code: 'en_US' }
-      }
-    };
-
-    /* --- PRONTO PARA QUANDO O SEU TEMPLATE DE ORÇAMENTO FOR APROVADO ---
     const data = {
       messaging_product: 'whatsapp',
       to: telefoneLimpo, 
@@ -222,94 +361,38 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
       template: {
         name: 'orcamento_aprovacao_os', 
         language: { code: 'pt_BR' },
-        components: [
-          {
-            type: 'body',
-            parameters: [
-              { type: 'text', text: numero_os },                           // {{1}}
-              { type: 'text', text: '90 dias' },                           // {{2}}
-              { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` } // {{3}}
-            ]
-          }
-        ]
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: numero_os },
+            { type: 'text', text: '90 dias' },
+            { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` }
+          ]
+        }]
       }
     };
-    ---------------------------------------------------------------- */
 
     const metaResponse = await fetch(`https://graph.facebook.com/v18.0/${process.env.META_PHONE_ID}/messages`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
 
-    const metaData = await metaResponse.json();
-
     if (metaResponse.ok) {
-      console.log(`✅ Mensagem enviada com sucesso para ${telefoneLimpo}!`);
       await pool.query(`UPDATE ordens_servico SET status = 'Aprovação do Cliente' WHERE id = $1`, [id]);
       return res.status(200).json({ success: true, message: 'Mensagem enviada com sucesso!' });
     } else {
-      console.error('❌ Erro retornado pela API da Meta:', JSON.stringify(metaData, null, 2));
-      return res.status(500).json({ error: 'Falha ao enviar WhatsApp pela Meta.', details: metaData });
+      const metaData = await metaResponse.json();
+      return res.status(500).json({ error: 'Falha ao enviar WhatsApp.', details: metaData });
     }
-
   } catch (err) {
-    console.error('❌ Erro interno ao processar envio de WhatsApp:', err.message);
-    return res.status(500).json({ error: 'Erro interno no servidor: ' + err.message });
+    return res.status(500).json({ error: 'Erro interno: ' + err.message });
   }
 });
 
-// ==========================================
-// ROTA POST: Enviar Aviso de Aparelho Pronto via WhatsApp (Modo Texto Antigo)
-// ==========================================
 app.post('/api/ordens/:id/enviar-whatsapp-pronto', async (req, res) => {
-  const { telefone, cliente_nome, aparelho, defeito_diagnosticado, valor_estimado } = req.body;
-
-  try {
-    const mensagem = `Olá *${cliente_nome}*, ótimas notícias! O seu *${aparelho}* está pronto e passou por todos os nossos testes de qualidade. 🛠️✨\n\n` +
-      `📋 *Diagnóstico do Reparo:* ${defeito_diagnosticado}\n` +
-      `💰 *Valor Final:* R$ ${Number(valor_estimado).toFixed(2)}\n\n` +
-      `🕒 *Horário de Funcionamento:* Segunda a Sexta das 09:00 às 18:00, e Sábado das 09:00 às 13:00.\n` +
-      `💳 *Formas de Pagamento:* Dinheiro, Pix, Débito e Crédito (consulte condições para parcelamento).\n\n` +
-      `Te esperamos aqui na loja para a retirada! Qualquer dúvida é só chamar.`;
-
-    console.log(`📲 Mensagem de Aparelho Pronto gerada para ${telefone}: \n${mensagem}`);
-    res.json({ message: 'Aviso de pronto enviado com sucesso!' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Erro ao enviar mensagem de aparelho pronto' });
-  }
-});
-
-// ==========================================
-// ROTA DELETE: Excluir Ordem de Serviço
-// ==========================================
-app.delete('/api/ordens/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await pool.query('DELETE FROM ordens_servico WHERE id = $1', [id]);
-    res.json({ message: 'Ordem excluída com sucesso!' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Erro ao excluir Ordem de Serviço' });
-  }
-});
-
-// ==========================================
-// ROTA PATCH: Atualizar Status (Disparo Automático Seguro)
-// ==========================================
-app.patch('/api/ordens/:id/status', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
-
   try {
-    // 1. Atualiza o status no banco de dados com segurança
-    await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
-
-    // Busca os dados da OS e do cliente (sem colunas inexistentes)
     const query = `
       SELECT os.numero_os, os.aparelho, os.defeito_diagnosticado, os.valor_estimado, c.telefone, c.nome 
       FROM ordens_servico os
@@ -317,124 +400,89 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
       WHERE os.id = $1
     `;
     const result = await pool.query(query, [id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Ordem de serviço não encontrada.' });
 
-    if (result.rowCount > 0) {
-      const { numero_os, aparelho, defeito_diagnosticado, valor_estimado, telefone, nome } = result.rows[0];
-      
-      if (telefone) {
-        let telefoneLimpo = telefone.replace(/\D/g, '');
-        if (!telefoneLimpo.startsWith('55')) {
-          telefoneLimpo = '55' + telefoneLimpo;
-        }
+    const { aparelho, defeito_diagnosticado, valor_estimado, telefone, nome } = result.rows[0];
+    if (!telefone) return res.status(400).json({ error: 'O cliente não possui telefone.' });
 
-        let dataTemplate = null;
+    let telefoneLimpo = telefone.replace(/\D/g, '');
+    if (!telefoneLimpo.startsWith('55')) telefoneLimpo = '55' + telefoneLimpo;
 
-        // 2. Se mudou para "Aprovação do Cliente", dispara o template de orçamento
-        if (status === 'Aprovação do Cliente') {
-          // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
-          dataTemplate = {
-            messaging_product: 'whatsapp',
-            to: telefoneLimpo, 
-            type: 'template',
-            template: {
-              name: 'hello_world', 
-              language: { code: 'en_US' }
-            }
-          };
+    const data = {
+      messaging_product: 'whatsapp',
+      to: telefoneLimpo, 
+      type: 'template',
+      template: {
+        name: 'aparelho_pronto_retirada', 
+        language: { code: 'pt_BR' },
+        components: [{
+          type: 'body',
+          parameters: [
+            { type: 'text', text: nome },
+            { type: 'text', text: aparelho },
+            { type: 'text', text: defeito_diagnosticado || 'Reparo concluído' },
+            { type: 'text', text: Number(valor_estimado || 0).toFixed(2) }
+          ]
+        }]
+      }
+    };
 
-          /* --- PRONTO PARA O SEU TEMPLATE DE ORÇAMENTO FUTURO ---
-          dataTemplate = {
-            messaging_product: 'whatsapp',
-            to: telefoneLimpo, 
-            type: 'template',
-            template: {
-              name: 'orcamento_aprovacao_os', 
-              language: { code: 'pt_BR' },
-              components: [
-                {
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: numero_os },
-                    { type: 'text', text: '90 dias' },
-                    { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` }
-                  ]
-                }
-              ]
-            }
-          };
-          ----------------------------------------------------- */
-        }
+    const metaResponse = await fetch(`https://graph.facebook.com/v18.0/${process.env.META_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
 
-        // 3. Se mudou para "Pronto (Avisar Cliente)", dispara o template de retirada
-        else if (status === 'Pronto (Avisar Cliente)') {
-          // --- TEMPLATE ATUAL DE TESTE (HELLO_WORLD) ---
-          dataTemplate = {
-            messaging_product: 'whatsapp',
-            to: telefoneLimpo, 
-            type: 'template',
-            template: {
-              name: 'hello_world', 
-              language: { code: 'en_US' }
-            }
-          };
+    if (metaResponse.ok) {
+      return res.status(200).json({ success: true, message: 'Enviado!' });
+    } else {
+      return res.status(500).json({ error: 'Falha ao enviar.' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro interno: ' + err.message });
+  }
+});
 
-          /* --- PRONTO PARA O SEU TEMPLATE DE RETIRADA FUTURO ---
-          dataTemplate = {
-            messaging_product: 'whatsapp',
-            to: telefoneLimpo, 
-            type: 'template',
-            template: {
-              name: 'aparelho_pronto_retirada', 
-              language: { code: 'pt_BR' },
-              components: [
-                {
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: nome },                                    // {{1}}
-                    { type: 'text', text: aparelho },                                    // {{2}}
-                    { type: 'text', text: defeito_diagnosticado || 'Reparo concluído' },  // {{3}}
-                    { type: 'text', text: Number(valor_estimado || 0).toFixed(2)}          // {{4}}
-                  ]
-                }
-              ]
-            }
-          };
-          ----------------------------------------------------- */
-        }
+app.patch('/api/ordens/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { status, meio_pagamento } = req.body;
 
-        // Se houver um template mapeado para o status, executa o envio automático em background
-        if (dataTemplate) {
-          fetch(`https://graph.facebook.com/v18.0/${process.env.META_PHONE_ID}/messages`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(dataTemplate)
-          })
-          .then(async resMeta => {
-            if (resMeta.ok) {
-              console.log(`✅ WhatsApp automático disparado com sucesso para ${telefoneLimpo} (Status: ${status})!`);
-            } else {
-              const errData = await resMeta.json();
-              console.error('❌ Erro da Meta no disparo automático de status:', errData);
-            }
-          })
-          .catch(errFetch => console.error('❌ Erro na requisição fetch para a Meta:', errFetch.message));
+  try {
+    await pool.query('BEGIN');
+    await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
+
+    if (status === 'Finalizado') {
+      const osData = await pool.query('SELECT cliente_id, valor_estimado FROM ordens_servico WHERE id = $1', [id]);
+      if (osData.rowCount > 0) {
+        const { cliente_id, valor_estimado } = osData.rows[0];
+        const vendaExistente = await pool.query('SELECT id FROM vendas WHERE os_id = $1', [id]);
+        if (vendaExistente.rowCount === 0) {
+          await pool.query(
+            `INSERT INTO vendas (cliente_id, os_id, valor_total, meio_pagamento) VALUES ($1, $2, $3, $4)`,
+            [cliente_id, id, valor_estimado || 0, meio_pagamento || 'Dinheiro']
+          );
         }
       }
     }
 
+    await pool.query('COMMIT');
     res.json({ message: 'Status atualizado com sucesso!' });
   } catch (err) {
-    console.error('❌ ERRO NO PATCH DE STATUS:', err.message);
-    res.status(500).json({ error: 'Erro ao atualizar o status: ' + err.message });
+    await pool.query('ROLLBACK');
+    res.status(500).json({ error: 'Erro ao atualizar status: ' + err.message });
   }
 });
 
-// ==========================================
-// ROTA PUT: Editar Dados da OS e Checklist de Qualidade
-// ==========================================
+app.delete('/api/ordens/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM ordens_servico WHERE id = $1', [id]);
+    res.json({ message: 'Ordem excluída com sucesso!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro ao excluir Ordem de Serviço' });
+  }
+});
+
 app.put('/api/ordens/:id', async (req, res) => {
   const { id } = req.params;
   const { 
@@ -454,79 +502,117 @@ app.put('/api/ordens/:id', async (req, res) => {
       marca, aparelho, cor, senha, defeito, defeito_diagnosticado, 
       acessorios, avarias, observacoes, valor_estimado, testes_qualidade || '', id
     ]);
-
     res.json({ message: 'Ordem atualizada com sucesso!' });
   } catch (err) {
-    console.error(err.message);
     res.status(500).json({ error: 'Erro ao editar a Ordem de Serviço' });
   }
 });
 
 // ==========================================
-// ROTA GET: Verificação de Segurança do Webhook (Exigência da Meta)
+// WEBHOOK DO WHATSAPP
 // ==========================================
 app.get('/api/webhook/whatsapp', (req, res) => {
   const TOKEN_VERIFICACAO = "alphaos26";
-
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
 
-  if (mode && token) {
-    if (mode === 'subscribe' && token === TOKEN_VERIFICACAO) {
-      console.log('✅ Webhook verificado pela Meta com sucesso!');
-      res.status(200).send(challenge); 
-    } else {
-      res.sendStatus(403); 
-    }
+  if (mode && token && mode === 'subscribe' && token === TOKEN_VERIFICACAO) {
+    res.status(200).send(challenge); 
   } else {
-    res.sendStatus(400);
+    res.sendStatus(403); 
+  }
+});
+
+app.post('/api/webhook/whatsapp', async (req, res) => {
+  const body = req.body;
+  res.sendStatus(200);
+
+  if (body.object === 'whatsapp_business_account' && body.entry?.[0]?.changes?.[0]?.value?.messages) {
+    const mensagem = body.entry[0].changes[0].value.messages[0];
+    const numeroCliente = mensagem.from; 
+
+    if (mensagem.type === 'interactive') {
+      const idBotaoClicado = mensagem.interactive.button_reply.id;
+      let novoStatus = idBotaoClicado === 'btn_aprovar' ? 'Compra das Peças' : idBotaoClicado === 'btn_recusar' ? 'Pronto (Avisar Cliente)' : '';
+
+      if (novoStatus) {
+        try {
+          const telefoneFinal = numeroCliente.slice(-8); 
+          await pool.query(`
+            UPDATE ordens_servico
+            SET status = $1
+            WHERE id = (
+              SELECT os.id FROM ordens_servico os JOIN clientes c ON os.cliente_id = c.id
+              WHERE c.telefone LIKE $2 AND os.status = 'Aprovação do Cliente'
+              ORDER BY os.data_entrada DESC LIMIT 1
+            )
+          `, [novoStatus, `%${telefoneFinal}%`]);
+        } catch (err) {
+          console.error('Erro no Webhook:', err.message);
+        }
+      }
+    }
   }
 });
 
 // ==========================================
-// ROTA POST: Receber as Respostas dos Clientes via Webhook
+// ROTA POST: Reconhecer Aparelho via IA (Gemini)
 // ==========================================
-app.post('/api/webhook/whatsapp', async (req, res) => {
-  const body = req.body;
-  res.sendStatus(200); // Retorna OK rápido para a Meta
+app.post('/api/reconhecer-aparelho', async (req, res) => {
+  const { imagem } = req.body;
+  if (!imagem) return res.status(400).json({ error: 'Nenhuma imagem enviada.' });
 
-  if (body.object === 'whatsapp_business_account') {
-    if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages) {
-      const mensagem = body.entry[0].changes[0].value.messages[0];
-      const numeroCliente = mensagem.from; 
+  const base64Data = imagem.replace(/^data:image\/\w+;base64,/, '');
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'Chave da API do Gemini não configurada.' });
 
-      if (mensagem.type === 'interactive') {
-        const idBotaoClicado = mensagem.interactive.button_reply.id;
-        console.log(`📲 Interação recebida do número ${numeroCliente}: Botão [${idBotaoClicado}]`);
+  let tentativas = 3;
+  let sucesso = false;
+  let dadosResposta = null;
 
-        let novoStatus = '';
-        if (idBotaoClicado === 'btn_aprovar') novoStatus = 'Compra das Peças';
-        else if (idBotaoClicado === 'btn_recusar') novoStatus = 'Pronto (Avisar Cliente)';
-        else if (idBotaoClicado === 'btn_duvida') novoStatus = 'Avaliação Inicial'; 
+  while (tentativas > 0 && !sucesso) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: "Você é um especialista em eletrônicos. Analise esta foto da parte traseira de um smartphone e identifique o modelo exato (Ex: iPhone 13, Samsung Galaxy S22). Retorne APENAS o nome do modelo limpo. Se não conseguir, responda 'Desconhecido'." },
+              { inline_data: { mime_type: "image/jpeg", data: base64Data } }
+            ]
+          }]
+        })
+      });
 
-        if (novoStatus) {
-          try {
-            const telefoneFinal = numeroCliente.slice(-8); 
-            const updateQuery = `
-              UPDATE ordens_servico
-              SET status = $1
-              WHERE id = (
-                SELECT os.id FROM ordens_servico os JOIN clientes c ON os.cliente_id = c.id
-                WHERE c.telefone LIKE $2 AND os.status = 'Aprovação do Cliente'
-                ORDER BY os.data_entrada DESC LIMIT 1
-              ) RETURNING numero_os;
-            `;
-            const result = await pool.query(updateQuery, [novoStatus, `%${telefoneFinal}%`]);
-            if (result.rowCount > 0) {
-              console.log(`🚀 SUCESSO! A OS ${result.rows[0].numero_os} avançou para: ${novoStatus}`);
-            }
-          } catch (err) {
-            console.error('Erro ao atualizar a OS:', err.message);
-          }
-        }
+      dadosResposta = await response.json();
+      if (response.ok) {
+        sucesso = true;
+      } else if (dadosResposta.error?.code === 503) {
+        tentativas--;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        break;
       }
+    } catch (err) {
+      tentativas--;
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
+  }
+
+  if (!sucesso || !dadosResposta?.candidates) {
+    return res.status(503).json({ error: 'IA congestionada. Tente novamente.' });
+  }
+
+  try {
+    const modeloIdentificado = dadosResposta.candidates[0].content.parts[0].text.trim();
+    if (modeloIdentificado.toLowerCase().includes('desconhecido') || modeloIdentificado.length < 2) {
+      return res.status(404).json({ error: 'Não foi possível reconhecer o modelo.' });
+    }
+    return res.json({ modelo: modeloIdentificado });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erro ao interpretar resposta da IA.' });
   }
 });
 
