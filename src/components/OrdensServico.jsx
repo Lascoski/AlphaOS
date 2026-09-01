@@ -24,6 +24,37 @@ export default function OrdensServico() {
     rua: '', numero: '', bairro: '', cidade: ''
   })
 
+  const formatarCpfCnpj = (valor) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 14)
+
+    if (numeros.length <= 11) {
+      return numeros
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    }
+
+    return numeros
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+  }
+
+  const formatarTelefone = (valor) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 11)
+
+    if (numeros.length <= 10) {
+      return numeros
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+    }
+
+    return numeros
+      .replace(/(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2')
+  }
+
   // Estados do Modal da Câmera (Reconhecimento por IA)
   const [modalCameraAberto, setModalCameraAberto] = useState(false)
   const [streamCamera, setStreamCamera] = useState(null)
@@ -922,9 +953,15 @@ export default function OrdensServico() {
                   <div className="input-with-button" style={{ display: 'flex', gap: '8px' }}>
                     <input 
                       type="text" 
-                      placeholder="Apenas números" 
+                      placeholder="CPF ou CNPJ" 
                       value={formClienteData.cpf} 
-                      onChange={e => setFormClienteData({...formClienteData, cpf: e.target.value})} 
+                      onChange={e =>
+                        setFormClienteData({
+                          ...formClienteData,
+                          cpf: formatarCpfCnpj(e.target.value)
+                        })
+                      }
+                      title="Digite o CPF com 11 números ou CNPJ com 14 números"
                       style={{ flex: 1 }}
                     />
                     <button type="button" className="btn-save" onClick={buscarCNPJCliente} style={{ padding: '0 12px', fontSize: '13px' }}>
@@ -941,7 +978,7 @@ export default function OrdensServico() {
                     onChange={e =>
                       setFormClienteData({
                         ...formClienteData,
-                        cpf: formatarCpfCnpj(e.target.value)
+                        data_nascimento: e.target.value
                       })
                     } 
                   />
@@ -967,7 +1004,8 @@ export default function OrdensServico() {
                         ...formClienteData,
                         telefone: formatarTelefone(e.target.value)
                       })
-                    } 
+                    }
+                    title="Digite o telefone com DDD"
                   />
                 </div>
                 
