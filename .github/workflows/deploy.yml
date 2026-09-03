@@ -36,14 +36,11 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            # 1. Cria uma pasta especifica para o projeto e entra nela
             mkdir -p ~/meu-app
             cd ~/meu-app
 
-            # 2. Cria o arquivo .env com o usuario
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" > .env
             
-            # 3. Escreve o arquivo docker-compose.yml dentro da pasta
             cat << 'EOF' > docker-compose.yml
             services:
               api-teste:
@@ -53,7 +50,9 @@ jobs:
                 restart: always
             EOF
             
-            # 4. Baixa a imagem nova e reinicia o sistema
+            # Limpa qualquer container antigo que esteja travando a porta 80
+            docker rm -f $(docker ps -aq) || true
+            
+            # Baixa a imagem nova e sobe o projeto
             docker pull ${{ secrets.DOCKER_USERNAME }}/app-teste:latest
-            docker compose down
             docker compose up -d
