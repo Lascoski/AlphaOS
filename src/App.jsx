@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { DollarSign, TrendingUp, Receipt, Wrench } from 'lucide-react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 
@@ -10,6 +11,7 @@ import TechniciansTable from './components/TechniciansTable'
 import OrdensServico from './components/OrdensServico'
 import Clientes from './components/Clientes'
 import Vendas from './components/Vendas'
+import Login from './components/Login'
 
 import './App.css'
 
@@ -94,6 +96,33 @@ function PaginaTemporaria({ titulo }) {
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Verificar se o utilizador já tem sessão iniciada ao carregar a aplicação
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsAuthenticated(true);
+    }
+    setLoading(false);
+  }, []);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>A carregar...</div>;
+  }
+
+  // Se não estiver autenticado, mostrar apenas a rota de login e redirecionar tudo o resto para lá
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/login" element={<Login setAuth={setIsAuthenticated} />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  // Se estiver autenticado, mostra o sistema completo
   return (
     <div className="app">
       <Sidebar />
@@ -119,14 +148,7 @@ function App() {
             element={<Vendas titulo="Vendas (PDV)" />}
           />
 
-
           <Route path="/clientes" element={<Clientes />} />
-
-          <Route
-            path="/clientes"
-            element={<PaginaTemporaria titulo="Clientes" />}
-          />
-
 
           <Route
             path="/relatorios"
@@ -137,6 +159,9 @@ function App() {
             path="/configuracoes"
             element={<PaginaTemporaria titulo="Configurações" />}
           />
+
+          {/* Redirecionar qualquer rota não encontrada para o dashboard se estiver autenticado */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
     </div>
