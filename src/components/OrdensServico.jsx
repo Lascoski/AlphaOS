@@ -75,13 +75,13 @@ export default function OrdensServico() {
 
   const buscarDados = () => {
     setCarregando(true)
-    fetch('http://localhost:3001/api/ordens')
+    fetch('http://localhost:3000/api/ordens')
       .then(res => res.json())
       .then(dados => setListaOS(dados))
       .catch(erro => console.error("Erro OS:", erro))
       .finally(() => setCarregando(false))
 
-    fetch('http://localhost:3001/api/clientes')
+    fetch('http://localhost:3000/api/clientes')
       .then(res => res.json())
       .then(dados => setClientes(dados))
       .catch(erro => console.error("Erro Clientes:", erro))
@@ -133,7 +133,7 @@ export default function OrdensServico() {
     mostrarToast("Analisando o aparelho com Inteligência Artificial...", "sucesso")
 
     try {
-      const res = await fetch('http://localhost:3001/api/reconhecer-aparelho', {
+      const res = await fetch('http://localhost:3000/api/reconhecer-aparelho', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imagem: imagemBase64 })
@@ -181,7 +181,7 @@ export default function OrdensServico() {
   const salvarNovoClienteNaOS = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/clientes', {
+      const response = await fetch('http://localhost:3000/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formClienteData)
@@ -224,7 +224,7 @@ export default function OrdensServico() {
       .join(', ')
 
     try {
-      await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}`, {
+      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -260,7 +260,7 @@ export default function OrdensServico() {
     }
     
     try {
-      const resposta = await fetch('http://localhost:3001/api/ordens', {
+      const resposta = await fetch('http://localhost:3000/api/ordens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosParaEnviar)
@@ -278,7 +278,7 @@ export default function OrdensServico() {
 
   const dispararWhatsAppPronto = async () => {
     try {
-      await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
+      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -310,7 +310,7 @@ export default function OrdensServico() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}/status`, {
+      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })
@@ -349,7 +349,7 @@ export default function OrdensServico() {
         testes_qualidade: stringTestes
       }
 
-      const res = await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}`, {
+      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosAtualizados)
@@ -369,7 +369,7 @@ export default function OrdensServico() {
     if (e) e.stopPropagation()
     if (confirm("Tem certeza que deseja excluir esta Ordem de Serviço?")) {
       try {
-        const res = await fetch(`http://localhost:3001/api/ordens/${id}`, { method: 'DELETE' })
+        const res = await fetch(`http://localhost:3000/api/ordens/${id}`, { method: 'DELETE' })
         if (res.ok) { setModalVisaoAberto(false); buscarDados() }
       } catch (err) { console.error(err) }
     }

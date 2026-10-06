@@ -101,7 +101,9 @@ function App() {
 
   // Verificar se o utilizador já tem sessão iniciada ao carregar a aplicação
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Agora verifica tanto no localStorage (lembrar=true) como no sessionStorage (lembrar=false)
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    
     if (token) {
       setIsAuthenticated(true);
     }

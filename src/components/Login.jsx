@@ -5,6 +5,7 @@ import './Login.css';
 export default function Login({ setAuth }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [lembrar, setLembrar] = useState(false); // Novo estado
   const [erro, setErro] = useState('');
   const navigate = useNavigate();
 
@@ -16,14 +17,23 @@ export default function Login({ setAuth }) {
       const response = await fetch('http://localhost:3000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, senha }),
+        // Enviamos também a preferência de lembrar
+        body: JSON.stringify({ email, senha, lembrar }), 
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('usuario', JSON.stringify(data.usuario));
+        // Se a caixa estiver marcada, guarda no localStorage (permanente)
+        if (lembrar) {
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('usuario', JSON.stringify(data.usuario));
+        } else {
+          // Se não, guarda no sessionStorage (apaga ao fechar a janela)
+          sessionStorage.setItem('token', data.token);
+          sessionStorage.setItem('usuario', JSON.stringify(data.usuario));
+        }
+        
         setAuth(true);
         navigate('/dashboard');
       } else {
@@ -52,7 +62,7 @@ export default function Login({ setAuth }) {
           />
         </div>
         
-        <div className="login-form-group last">
+        <div className="login-form-group">
           <label className="login-label">Palavra-passe</label>
           <input 
             type="password" 
@@ -61,6 +71,20 @@ export default function Login({ setAuth }) {
             onChange={(e) => setSenha(e.target.value)} 
             required 
           />
+        </div>
+
+        {/* Nova Checkbox */}
+        <div className="login-form-group last" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <input 
+            type="checkbox" 
+            id="lembrar" 
+            checked={lembrar}
+            onChange={(e) => setLembrar(e.target.checked)}
+            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+          />
+          <label htmlFor="lembrar" style={{ color: '#4b5563', fontSize: '14px', cursor: 'pointer', margin: 0 }}>
+            Lembrar de mim por 30 dias
+          </label>
         </div>
         
         <button type="submit" className="login-button">

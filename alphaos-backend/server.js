@@ -40,12 +40,11 @@ app.post('/api/usuarios/registrar', async (req, res) => {
     res.status(500).json({ error: 'Erro ao criar utilizador' });
   }
 });
-
 // ==========================================
 // ROTA POST: Login
 // ==========================================
 app.post('/api/login', async (req, res) => {
-  const { email, senha } = req.body;
+  const { email, senha, lembrar } = req.body; // <-- Adicionámos o "lembrar" aqui
   try {
     const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
     
@@ -60,10 +59,13 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'E-mail ou palavra-passe incorretos' });
     }
 
+    // Se "lembrar" for true, o token dura 30 dias. Se for false, dura apenas 8 horas.
+    const tempoExpiracao = lembrar ? '30d' : '8h';
+
     const token = jwt.sign(
       { id: usuario.id, papel: usuario.papel }, 
       process.env.JWT_SECRET || 'chave_fallback_super_secreta', 
-      { expiresIn: '8h' }
+      { expiresIn: tempoExpiracao }
     );
 
     res.json({
