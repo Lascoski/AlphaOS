@@ -2,8 +2,8 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
-  width: 100vw;
+  height: 150vh;
+  width: 150vw;
   background-color: #f9fafb;
 }
 
@@ -68,7 +68,7 @@
 .login-button {
   width: 100%;
   padding: 12px;
-  background-color: #2563eb;
+  background-color: #143a8b;
   color: white;
   border: none;
   border-radius: 6px;
