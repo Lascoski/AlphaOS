@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const app = express();
@@ -14,6 +16,66 @@ const pool = new Pool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
   database: process.env.DB_NAME,
+});
+
+// ==========================================
+// ROTA POST: Criar Utilizador Inicial (Registo)
+// ==========================================
+app.post('/api/usuarios/registrar', async (req, res) => {
+  const { nome, email, senha, papel } = req.body;
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const senhaHash = await bcrypt.hash(senha, salt);
+    
+    const result = await pool.query(
+      'INSERT INTO usuarios (nome, email, senha, papel) VALUES ($1, $2, $3, $4) RETURNING id, nome, email, papel',
+      [nome, email, senhaHash, papel || 'Administrador']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Este e-mail já está registado.' });
+    }
+    console.error('Erro ao criar utilizador:', err.message);
+    res.status(500).json({ error: 'Erro ao criar utilizador' });
+  }
+});
+// ==========================================
+// ROTA POST: Login
+// ==========================================
+app.post('/api/login', async (req, res) => {
+  const { email, senha, lembrar } = req.body; // <-- Adicionámos o "lembrar" aqui
+  try {
+    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+    
+    if (result.rowCount === 0) {
+      return res.status(401).json({ error: 'E-mail ou palavra-passe incorretos' });
+    }
+
+    const usuario = result.rows[0];
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    
+    if (!senhaValida) {
+      return res.status(401).json({ error: 'E-mail ou palavra-passe incorretos' });
+    }
+
+    // Se "lembrar" for true, o token dura 30 dias. Se for false, dura apenas 8 horas.
+    const tempoExpiracao = lembrar ? '30d' : '8h';
+
+    const token = jwt.sign(
+      { id: usuario.id, papel: usuario.papel }, 
+      process.env.JWT_SECRET || 'chave_fallback_super_secreta', 
+      { expiresIn: tempoExpiracao }
+    );
+
+    res.json({
+      token,
+      usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel }
+    });
+  } catch (err) {
+    console.error('Erro ao efetuar login:', err.message);
+    res.status(500).json({ error: 'Erro interno no servidor' });
+  }
 });
 
 // ==========================================
@@ -641,7 +703,7 @@ app.post('/api/reconhecer-aparelho', async (req, res) => {
         body: JSON.stringify({
           contents: [{
             parts: [
-              { text: "Você é um especialista em eletrônicos. Analise esta foto da parte traseira de um smartphone e identifique o modelo exato (Ex: iPhone 13, Samsung Galaxy S22). Retorne APENAS o nome do modelo limpo. Se não conseguir, responda 'Desconhecido'." },
+              { text: "Você é um especialista em eletrônicos. Analise esta foto da parte traseira de um smartphone e identifique o modelo exato. Retorne APENAS o nome do modelo limpo. Se não conseguir, responda 'Desconhecido'." },
               { inline_data: { mime_type: "image/jpeg", data: base64Data } }
             ]
           }]
@@ -678,7 +740,7 @@ app.post('/api/reconhecer-aparelho', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Back-end do alphaOS rodando na porta ${PORT}`);
 });

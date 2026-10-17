@@ -24,37 +24,6 @@ export default function OrdensServico() {
     rua: '', numero: '', bairro: '', cidade: ''
   })
 
-  const formatarCpfCnpj = (valor) => {
-    const numeros = valor.replace(/\D/g, '').slice(0, 14)
-
-    if (numeros.length <= 11) {
-      return numeros
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d)/, '$1.$2')
-        .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
-    }
-
-    return numeros
-      .replace(/^(\d{2})(\d)/, '$1.$2')
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1/$2')
-      .replace(/(\d{4})(\d)/, '$1-$2')
-  }
-
-  const formatarTelefone = (valor) => {
-    const numeros = valor.replace(/\D/g, '').slice(0, 11)
-
-    if (numeros.length <= 10) {
-      return numeros
-        .replace(/(\d{2})(\d)/, '($1) $2')
-        .replace(/(\d{4})(\d)/, '$1-$2')
-    }
-
-    return numeros
-      .replace(/(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{5})(\d)/, '$1-$2')
-  }
-
   // Estados do Modal da Câmera (Reconhecimento por IA)
   const [modalCameraAberto, setModalCameraAberto] = useState(false)
   const [streamCamera, setStreamCamera] = useState(null)
@@ -106,13 +75,13 @@ export default function OrdensServico() {
 
   const buscarDados = () => {
     setCarregando(true)
-    fetch('http://localhost:3001/api/ordens')
+    fetch('http://localhost:3000/api/ordens')
       .then(res => res.json())
       .then(dados => setListaOS(dados))
       .catch(erro => console.error("Erro OS:", erro))
       .finally(() => setCarregando(false))
 
-    fetch('http://localhost:3001/api/clientes')
+    fetch('http://localhost:3000/api/clientes')
       .then(res => res.json())
       .then(dados => setClientes(dados))
       .catch(erro => console.error("Erro Clientes:", erro))
@@ -164,7 +133,7 @@ export default function OrdensServico() {
     mostrarToast("Analisando o aparelho com Inteligência Artificial...", "sucesso")
 
     try {
-      const res = await fetch('http://localhost:3001/api/reconhecer-aparelho', {
+      const res = await fetch('http://localhost:3000/api/reconhecer-aparelho', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imagem: imagemBase64 })
@@ -212,7 +181,7 @@ export default function OrdensServico() {
   const salvarNovoClienteNaOS = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3001/api/clientes', {
+      const response = await fetch('http://localhost:3000/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formClienteData)
@@ -255,7 +224,7 @@ export default function OrdensServico() {
       .join(', ')
 
     try {
-      await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}`, {
+      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +260,7 @@ export default function OrdensServico() {
     }
     
     try {
-      const resposta = await fetch('http://localhost:3001/api/ordens', {
+      const resposta = await fetch('http://localhost:3000/api/ordens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosParaEnviar)
@@ -309,7 +278,7 @@ export default function OrdensServico() {
 
   const dispararWhatsAppPronto = async () => {
     try {
-      await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
+      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -341,7 +310,7 @@ export default function OrdensServico() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}/status`, {
+      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })
@@ -380,7 +349,7 @@ export default function OrdensServico() {
         testes_qualidade: stringTestes
       }
 
-      const res = await fetch(`http://localhost:3001/api/ordens/${osSelecionada.id}`, {
+      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosAtualizados)
@@ -400,7 +369,7 @@ export default function OrdensServico() {
     if (e) e.stopPropagation()
     if (confirm("Tem certeza que deseja excluir esta Ordem de Serviço?")) {
       try {
-        const res = await fetch(`http://localhost:3001/api/ordens/${id}`, { method: 'DELETE' })
+        const res = await fetch(`http://localhost:3000/api/ordens/${id}`, { method: 'DELETE' })
         if (res.ok) { setModalVisaoAberto(false); buscarDados() }
       } catch (err) { console.error(err) }
     }
@@ -958,15 +927,9 @@ export default function OrdensServico() {
                   <div className="input-with-button" style={{ display: 'flex', gap: '8px' }}>
                     <input 
                       type="text" 
-                      placeholder="CPF ou CNPJ" 
+                      placeholder="Apenas números" 
                       value={formClienteData.cpf} 
-                      onChange={e =>
-                        setFormClienteData({
-                          ...formClienteData,
-                          cpf: formatarCpfCnpj(e.target.value)
-                        })
-                      }
-                      title="Digite o CPF com 11 números ou CNPJ com 14 números"
+                      onChange={e => setFormClienteData({...formClienteData, cpf: e.target.value})} 
                       style={{ flex: 1 }}
                     />
                     <button type="button" className="btn-save" onClick={buscarCNPJCliente} style={{ padding: '0 12px', fontSize: '13px' }}>
@@ -980,12 +943,7 @@ export default function OrdensServico() {
                   <input 
                     type="date" 
                     value={formClienteData.data_nascimento} 
-                    onChange={e =>
-                      setFormClienteData({
-                        ...formClienteData,
-                        data_nascimento: e.target.value
-                      })
-                    } 
+                    onChange={e => setFormClienteData({...formClienteData, data_nascimento: e.target.value})} 
                   />
                 </div>
 
@@ -1004,13 +962,7 @@ export default function OrdensServico() {
                   <input 
                     type="text" 
                     value={formClienteData.telefone} 
-                    onChange={e =>
-                      setFormClienteData({
-                        ...formClienteData,
-                        telefone: formatarTelefone(e.target.value)
-                      })
-                    }
-                    title="Digite o telefone com DDD"
+                    onChange={e => setFormClienteData({...formClienteData, telefone: e.target.value})} 
                   />
                 </div>
                 
