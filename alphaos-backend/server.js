@@ -132,7 +132,7 @@ app.put('/api/clientes/:id', async (req, res) => {
 });
 
 // ==========================================
-// ROTA POST: Criar uma nova Ordem de Serviço (Blindada contra duplicação de exclusão)
+// ROTA POST: Criar uma nova Ordem de Serviço
 // ==========================================
 app.post('/api/ordens', async (req, res) => {
   const { 
@@ -143,7 +143,6 @@ app.post('/api/ordens', async (req, res) => {
   try {
     await pool.query('BEGIN');
 
-    // Pega o maior ID da tabela para evitar conflito se houver exclusões anteriores
     const maxIdResult = await pool.query('SELECT COALESCE(MAX(id), 0) as max_id FROM ordens_servico');
     const proximoNumero = parseInt(maxIdResult.rows[0].max_id) + 1;
     const numeroFormatado = String(proximoNumero).padStart(3, '0');
@@ -334,8 +333,10 @@ app.put('/api/vendas/:id', async (req, res) => {
 });
 
 // ==========================================
-// ROTAS DE WHATSAPP / STATUS / EXCLUIR OS
+// ROTAS DE WHATSAPP / EXCLUIR OS / ATUALIZAR STATUS COM DISPARO
 // ==========================================
+
+// Rota de disparo manual de Orçamento
 app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
   const { id } = req.params;
   try {
@@ -365,7 +366,6 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
           type: 'body',
           parameters: [
             { type: 'text', text: numero_os },
-            { type: 'text', text: '90 dias' },
             { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` }
           ]
         }]
@@ -378,11 +378,14 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
       body: JSON.stringify(data)
     });
 
+    const metaData = await metaResponse.json();
+
     if (metaResponse.ok) {
+      console.log(`✅ Orçamento enviado para ${telefoneLimpo}`);
       await pool.query(`UPDATE ordens_servico SET status = 'Aprovação do Cliente' WHERE id = $1`, [id]);
       return res.status(200).json({ success: true, message: 'Mensagem enviada com sucesso!' });
     } else {
-      const metaData = await metaResponse.json();
+      console.error('❌ Erro retornado pela Meta (Manual):', JSON.stringify(metaData, null, 2));
       return res.status(500).json({ error: 'Falha ao enviar WhatsApp.', details: metaData });
     }
   } catch (err) {
@@ -390,6 +393,7 @@ app.post('/api/ordens/:id/enviar-whatsapp', async (req, res) => {
   }
 });
 
+// Rota de disparo manual Aparelho Pronto
 app.post('/api/ordens/:id/enviar-whatsapp-pronto', async (req, res) => {
   const { id } = req.params;
   try {
@@ -443,6 +447,7 @@ app.post('/api/ordens/:id/enviar-whatsapp-pronto', async (req, res) => {
   }
 });
 
+// AQUI OCORRE A MÁGICA DE MUDAR O STATUS DA OS E DISPARAR O WHATSAPP AUTOMATICAMENTE
 app.patch('/api/ordens/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status, meio_pagamento } = req.body;
@@ -451,6 +456,7 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
     await pool.query('BEGIN');
     await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
 
+    // 1. Se finalizou a OS, gera a venda automaticamente
     if (status === 'Finalizado') {
       const osData = await pool.query('SELECT cliente_id, valor_estimado FROM ordens_servico WHERE id = $1', [id]);
       if (osData.rowCount > 0) {
@@ -462,6 +468,57 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
             [cliente_id, id, valor_estimado || 0, meio_pagamento || 'Dinheiro']
           );
         }
+      }
+    }
+
+    // 2. Se a OS for avançada para a etapa de Aprovação, dispara a API do WhatsApp
+    if (status === 'Aprovação do Cliente') {
+      const query = `
+        SELECT os.numero_os, os.valor_estimado, c.telefone 
+        FROM ordens_servico os
+        JOIN clientes c ON os.cliente_id = c.id
+        WHERE os.id = $1
+      `;
+      const result = await pool.query(query, [id]);
+      
+      if (result.rowCount > 0 && result.rows[0].telefone) {
+        const { numero_os, valor_estimado, telefone } = result.rows[0];
+        
+        let telefoneLimpo = telefone.replace(/\D/g, '');
+        if (!telefoneLimpo.startsWith('55')) telefoneLimpo = '55' + telefoneLimpo;
+
+        const dataTemplate = {
+          messaging_product: 'whatsapp',
+          to: telefoneLimpo, 
+          type: 'template',
+          template: {
+            name: 'orcamento_aprovacao_os', 
+            language: { code: 'pt_BR' },
+            components: [{
+              type: 'body',
+              parameters: [
+                { type: 'text', text: numero_os },
+                { type: 'text', text: `R$ ${Number(valor_estimado || 0).toFixed(2)}` }
+              ]
+            }]
+          }
+        };
+
+        // Dispara assincronamente (em segundo plano)
+        fetch(`https://graph.facebook.com/v18.0/${process.env.META_PHONE_ID}/messages`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${process.env.META_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataTemplate)
+        })
+        .then(async resMeta => {
+          if (resMeta.ok) {
+            console.log(`✅ Automático: Orçamento disparado com sucesso para ${telefoneLimpo}`);
+          } else {
+            const errData = await resMeta.json();
+            console.error('❌ Erro da Meta no disparo automático:', JSON.stringify(errData, null, 2));
+          }
+        })
+        .catch(errFetch => console.error('❌ Erro de Fetch no disparo automático:', errFetch.message));
       }
     }
 
@@ -509,7 +566,7 @@ app.put('/api/ordens/:id', async (req, res) => {
 });
 
 // ==========================================
-// WEBHOOK DO WHATSAPP
+// WEBHOOK DO WHATSAPP (Aprovação de Orçamentos via Celular)
 // ==========================================
 app.get('/api/webhook/whatsapp', (req, res) => {
   const TOKEN_VERIFICACAO = "alphaos26";
@@ -526,30 +583,35 @@ app.get('/api/webhook/whatsapp', (req, res) => {
 
 app.post('/api/webhook/whatsapp', async (req, res) => {
   const body = req.body;
-  res.sendStatus(200);
+  res.sendStatus(200); // Libera o ngrok e a Meta rapidamente
+
+  console.log('\n📦 [WEBHOOK] Novo evento recebido da Meta:');
+  console.log(JSON.stringify(body, null, 2));
 
   if (body.object === 'whatsapp_business_account' && body.entry?.[0]?.changes?.[0]?.value?.messages) {
     const mensagem = body.entry[0].changes[0].value.messages[0];
     const numeroCliente = mensagem.from; 
 
+    // Somente atua se a mensagem for o clique de um botão iterativo (nossos templates)
     if (mensagem.type === 'interactive') {
       const idBotaoClicado = mensagem.interactive.button_reply.id;
       let novoStatus = idBotaoClicado === 'btn_aprovar' ? 'Compra das Peças' : idBotaoClicado === 'btn_recusar' ? 'Pronto (Avisar Cliente)' : '';
 
       if (novoStatus) {
         try {
-          const telefoneFinal = numeroCliente.slice(-8); 
+          const telefoneFinal = numeroCliente.slice(-8); // Pega os últimos 8 dígitos do telefone para buscar no banco
           await pool.query(`
             UPDATE ordens_servico
             SET status = $1
             WHERE id = (
               SELECT os.id FROM ordens_servico os JOIN clientes c ON os.cliente_id = c.id
-              WHERE c.telefone LIKE $2 AND os.status = 'Aprovação do Cliente'
+              WHERE regexp_replace(c.telefone, '\\D', '', 'g') LIKE $2 AND os.status = 'Aprovação do Cliente'
               ORDER BY os.data_entrada DESC LIMIT 1
             )
           `, [novoStatus, `%${telefoneFinal}%`]);
+          console.log(`🚀 Sucesso! A OS foi aprovada via celular e atualizada para: ${novoStatus}`);
         } catch (err) {
-          console.error('Erro no Webhook:', err.message);
+          console.error('❌ Erro ao atualizar OS via Webhook:', err.message);
         }
       }
     }

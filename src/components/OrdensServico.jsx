@@ -590,8 +590,13 @@ export default function OrdensServico() {
                 <button type="button" className="btn-step btn-step-prev" onClick={voltarEtapa} disabled={etapasFluxo.indexOf(osSelecionada.status) === 0}>
                   ← Voltar Etapa
                 </button>
-                <button type="button" className="btn-step btn-step-next" onClick={avancarEtapa} disabled={osSelecionada.status === 'Finalizado'}>
-                  Avançar Etapa →
+                <button
+                  type="button"
+                  className="btn-step btn-step-next"
+                  onClick={avancarEtapa}
+                  disabled={osSelecionada.status === 'Finalizado' || osSelecionada.status === 'Aprovação do Cliente'}
+                  title={osSelecionada.status === 'Aprovação do Cliente' ? "Aguardando resposta do cliente via WhatsApp" : ""}>
+                    Avançar Etapa →
                 </button>
               </div>
             </div>
