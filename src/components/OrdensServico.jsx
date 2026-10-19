@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Plus, X, Smartphone, User, Trash2, Camera, CheckCircle, AlertCircle } from 'lucide-react'
 import Header from './Header' 
 import './OrdensServico.css'
+import { apiFetch } from '../api'
 
 export default function OrdensServico() {
   const [listaOS, setListaOS] = useState([])
@@ -75,13 +76,13 @@ export default function OrdensServico() {
 
   const buscarDados = () => {
     setCarregando(true)
-    fetch('http://localhost:3000/api/ordens')
+    apiFetch('/api/ordens')
       .then(res => res.json())
       .then(dados => setListaOS(dados))
       .catch(erro => console.error("Erro OS:", erro))
       .finally(() => setCarregando(false))
 
-    fetch('http://localhost:3000/api/clientes')
+    apiFetch('/api/clientes')
       .then(res => res.json())
       .then(dados => setClientes(dados))
       .catch(erro => console.error("Erro Clientes:", erro))
@@ -133,7 +134,7 @@ export default function OrdensServico() {
     mostrarToast("Analisando o aparelho com Inteligência Artificial...", "sucesso")
 
     try {
-      const res = await fetch('http://localhost:3000/api/reconhecer-aparelho', {
+      const res = await apiFetch('/api/reconhecer-aparelho', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imagem: imagemBase64 })
@@ -181,7 +182,7 @@ export default function OrdensServico() {
   const salvarNovoClienteNaOS = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/api/clientes', {
+      const response = await apiFetch('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formClienteData)
@@ -224,7 +225,7 @@ export default function OrdensServico() {
       .join(', ')
 
     try {
-      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
+      await apiFetch(`/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -260,7 +261,7 @@ export default function OrdensServico() {
     }
     
     try {
-      const resposta = await fetch('http://localhost:3000/api/ordens', {
+      const resposta = await apiFetch('/api/ordens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosParaEnviar)
@@ -278,7 +279,7 @@ export default function OrdensServico() {
 
   const dispararWhatsAppPronto = async () => {
     try {
-      await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
+      await apiFetch(`/api/ordens/${osSelecionada.id}/enviar-whatsapp-pronto`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -310,7 +311,7 @@ export default function OrdensServico() {
     }
 
     try {
-      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}/status`, {
+      const res = await apiFetch(`/api/ordens/${osSelecionada.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: novoStatus })
@@ -349,7 +350,7 @@ export default function OrdensServico() {
         testes_qualidade: stringTestes
       }
 
-      const res = await fetch(`http://localhost:3000/api/ordens/${osSelecionada.id}`, {
+      const res = await apiFetch(`/api/ordens/${osSelecionada.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosAtualizados)
@@ -369,7 +370,7 @@ export default function OrdensServico() {
     if (e) e.stopPropagation()
     if (confirm("Tem certeza que deseja excluir esta Ordem de Serviço?")) {
       try {
-        const res = await fetch(`http://localhost:3000/api/ordens/${id}`, { method: 'DELETE' })
+        const res = await apiFetch(`/api/ordens/${id}`, { method: 'DELETE' })
         if (res.ok) { setModalVisaoAberto(false); buscarDados() }
       } catch (err) { console.error(err) }
     }

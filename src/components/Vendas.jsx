@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, Plus, X, Trash2, Edit3, Package, CheckCircle, AlertCircle, UserPlus, DollarSign, ShoppingCart, TrendingUp } from 'lucide-react'
 import Header from './Header'
 import './Vendas.css'
+import { apiFetch } from '../api'
 
 export default function Vendas() {
   const [listaVendas, setListaVendas] = useState([])
@@ -54,9 +55,9 @@ export default function Vendas() {
   const buscarDadosVendas = () => {
     setCarregando(true)
     Promise.all([
-      fetch('http://localhost:3001/api/vendas').then(res => res.json()),
-      fetch('http://localhost:3001/api/produtos').then(res => res.json()),
-      fetch('http://localhost:3001/api/clientes').then(res => res.json())
+      apiFetch('/api/vendas').then(res => res.json()),
+      apiFetch('/api/produtos').then(res => res.json()),
+      apiFetch('/api/clientes').then(res => res.json())
     ])
       .then(([vendasData, produtosData, clientesData]) => {
         setListaVendas(vendasData)
@@ -107,7 +108,7 @@ export default function Vendas() {
     if (!novoCliente.nome) return mostrarToast("O nome do cliente é obrigatório.", "erro")
 
     try {
-      const res = await fetch('http://localhost:3001/api/clientes', {
+      const res = await apiFetch('/api/clientes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoCliente)
@@ -216,7 +217,7 @@ export default function Vendas() {
   const cancelarVenda = async (id) => {
     if (!window.confirm("Tem certeza que deseja cancelar e excluir esta venda?")) return
     try {
-      const res = await fetch(`http://localhost:3001/api/vendas/${id}`, { method: 'DELETE' })
+      const res = await apiFetch(`/api/vendas/${id}`, { method: 'DELETE' })
       if (res.ok) {
         mostrarToast("Venda cancelada com sucesso!", "sucesso")
         buscarDadosVendas()
@@ -245,13 +246,13 @@ export default function Vendas() {
     }
 
     try {
-      const url = vendaEditando 
-        ? `http://localhost:3001/api/vendas/${vendaEditando}` 
-        : 'http://localhost:3001/api/vendas'
+      const url = vendaEditando
+        ? `/api/vendas/${vendaEditando}`
+        : '/api/vendas'
       
       const method = vendaEditando ? 'PUT' : 'POST'
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dadosVenda)

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, TrendingUp, Gift, Search, Filter, MessageCircle, Edit2, Clock, X } from 'lucide-react';
 import './Clientes.css';
+import { apiFetch } from '../api';
 
 export default function Clientes() {
   const [termoBusca, setTermoBusca] = useState('');
@@ -16,7 +17,7 @@ export default function Clientes() {
   });
 
   const buscarClientes = () => {
-    fetch('http://localhost:3001/api/clientes')
+    apiFetch('/api/clientes')
       .then(res => res.json())
       .then(dados => {
         if (Array.isArray(dados)) setClientes(dados);
@@ -91,13 +92,13 @@ export default function Clientes() {
   const salvarCliente = async (e) => {
     e.preventDefault();
     try {
-      const url = clienteEditando 
-        ? `http://localhost:3001/api/clientes/${clienteEditando}` 
-        : 'http://localhost:3001/api/clientes';
+      const url = clienteEditando
+        ? `/api/clientes/${clienteEditando}`
+        : '/api/clientes';
       
       const method = clienteEditando ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)

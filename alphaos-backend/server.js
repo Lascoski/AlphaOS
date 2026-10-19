@@ -3,20 +3,30 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? null : 'chave_fallback_super_secreta');
+if (!jwtSecret) throw new Error('Defina JWT_SECRET nas variáveis de ambiente.');
+
 // Conexão com o Banco de Dados
-const pool = new Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-});
+const poolConfig = process.env.DATABASE_URL
+  ? { connectionString: process.env.DATABASE_URL }
+  : {
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      database: process.env.DB_NAME,
+    };
+if (process.env.PGSSLMODE === 'require') {
+  poolConfig.ssl = { rejectUnauthorized: false };
+}
+const pool = new Pool(poolConfig);
 
 // ==========================================
 // ROTA POST: Criar Utilizador Inicial (Registo)
@@ -24,6 +34,11 @@ const pool = new Pool({
 app.post('/api/usuarios/registrar', async (req, res) => {
   const { nome, email, senha, papel } = req.body;
   try {
+    const usuariosExistentes = await pool.query('SELECT COUNT(*)::int AS total FROM usuarios');
+    if (usuariosExistentes.rows[0].total > 0) {
+      return res.status(403).json({ error: 'O cadastro inicial já foi concluído.' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const senhaHash = await bcrypt.hash(senha, salt);
     
@@ -64,7 +79,7 @@ app.post('/api/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: usuario.id, papel: usuario.papel }, 
-      process.env.JWT_SECRET || 'chave_fallback_super_secreta', 
+      jwtSecret,
       { expiresIn: tempoExpiracao }
     );
 
@@ -75,6 +90,25 @@ app.post('/api/login', async (req, res) => {
   } catch (err) {
     console.error('Erro ao efetuar login:', err.message);
     res.status(500).json({ error: 'Erro interno no servidor' });
+  }
+});
+
+// Protege as rotas da aplicação. O login, o cadastro inicial e o webhook
+// permanecem públicos para permitir autenticação e integração com a Meta.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/login' || req.path === '/usuarios/registrar' || req.path.startsWith('/webhook/whatsapp')) {
+    return next();
+  }
+
+  const authorization = req.get('authorization') || '';
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Autenticação necessária.' });
+
+  try {
+    req.usuario = jwt.verify(token, jwtSecret);
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
   }
 });
 
@@ -202,10 +236,12 @@ app.post('/api/ordens', async (req, res) => {
     acessorios, avarias, observacoes, valor_estimado 
   } = req.body;
 
+  let client;
   try {
-    await pool.query('BEGIN');
+    client = await pool.connect();
+    await client.query('BEGIN');
 
-    const maxIdResult = await pool.query('SELECT COALESCE(MAX(id), 0) as max_id FROM ordens_servico');
+    const maxIdResult = await client.query('SELECT COALESCE(MAX(id), 0) as max_id FROM ordens_servico');
     const proximoNumero = parseInt(maxIdResult.rows[0].max_id) + 1;
     const numeroFormatado = String(proximoNumero).padStart(3, '0');
     const numeroOs = `OS-${numeroFormatado}`;
@@ -223,12 +259,16 @@ app.post('/api/ordens', async (req, res) => {
       defeito, defeito_diagnosticado || '', acessorios, avarias, observacoes, valor_estimado
     ];
     
-    const osResult = await pool.query(insertOs, valoresOs);
+    const osResult = await client.query(insertOs, valoresOs);
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
     res.status(201).json(osResult.rows[0]);
   } catch (err) {
-    await pool.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
     console.error('Erro ao criar OS:', err.message);
     res.status(500).json({ error: 'Erro ao criar Ordem de Serviço: ' + err.message });
   }
@@ -288,15 +328,17 @@ app.get('/api/vendas', async (req, res) => {
 app.post('/api/vendas', async (req, res) => {
   const { cliente_id, os_id, valor_total, meio_pagamento, itens } = req.body;
   
+  let client;
   try {
-    await pool.query('BEGIN');
+    client = await pool.connect();
+    await client.query('BEGIN');
 
     const insertVenda = `
       INSERT INTO vendas (cliente_id, os_id, valor_total, meio_pagamento) 
       VALUES ($1, $2, $3, $4) 
       RETURNING *;
     `;
-    const vendaResult = await pool.query(insertVenda, [cliente_id, os_id || null, valor_total, meio_pagamento]);
+    const vendaResult = await client.query(insertVenda, [cliente_id, os_id || null, valor_total, meio_pagamento]);
     const vendaId = vendaResult.rows[0].id;
 
     if (itens && Array.isArray(itens) && itens.length > 0) {
@@ -304,20 +346,20 @@ app.post('/api/vendas', async (req, res) => {
         let produtoFinalId = item.produto_id;
 
         if (item.isManual || typeof item.produto_id === 'string') {
-          const prodRes = await pool.query(
+          const prodRes = await client.query(
             'INSERT INTO produtos (nome, preco, quantidade_estoque) VALUES ($1, $2, $3) RETURNING id',
             [`(Avulso) ${item.nome}`, item.preco_unitario, 0]
           );
           produtoFinalId = prodRes.rows[0].id;
         }
 
-        await pool.query(
+        await client.query(
           `INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario) VALUES ($1, $2, $3, $4)`,
           [vendaId, produtoFinalId, item.quantidade, item.preco_unitario]
         );
 
         if (!item.isManual && typeof item.produto_id !== 'string') {
-          await pool.query(
+          await client.query(
             `UPDATE produtos SET quantidade_estoque = quantidade_estoque - $1 WHERE id = $2`,
             [item.quantidade, produtoFinalId]
           );
@@ -326,13 +368,17 @@ app.post('/api/vendas', async (req, res) => {
     }
 
     if (os_id) {
-      await pool.query(`UPDATE ordens_servico SET status = 'Finalizado' WHERE id = $1`, [os_id]);
+      await client.query(`UPDATE ordens_servico SET status = 'Finalizado' WHERE id = $1`, [os_id]);
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
     res.status(201).json(vendaResult.rows[0]);
   } catch (err) {
-    await pool.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
     console.error('Erro ao registrar venda:', err.message);
     res.status(500).json({ error: 'Erro ao registrar venda' });
   }
@@ -341,14 +387,20 @@ app.post('/api/vendas', async (req, res) => {
 app.delete('/api/vendas/:id', async (req, res) => {
   const { id } = req.params;
 
+  let client;
   try {
-    await pool.query('BEGIN');
-    await pool.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
-    await pool.query('DELETE FROM vendas WHERE id = $1', [id]);
-    await pool.query('COMMIT');
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
+    await client.query('DELETE FROM vendas WHERE id = $1', [id]);
+    await client.query('COMMIT');
+    client.release();
     res.json({ message: 'Venda cancelada e excluída com sucesso!' });
   } catch (err) {
-    await pool.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
     console.error("Erro ao deletar venda:", err.message);
     res.status(500).json({ error: 'Erro ao deletar venda e seus itens.' });
   }
@@ -358,37 +410,43 @@ app.put('/api/vendas/:id', async (req, res) => {
   const { id } = req.params;
   const { cliente_id, valor_total, meio_pagamento, itens } = req.body;
 
+  let client;
   try {
-    await pool.query('BEGIN');
-    await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query(
       'UPDATE vendas SET cliente_id = $1, valor_total = $2, meio_pagamento = $3 WHERE id = $4',
       [cliente_id, valor_total, meio_pagamento, id]
     );
-    await pool.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
+    await client.query('DELETE FROM itens_venda WHERE venda_id = $1', [id]);
 
     if (itens && itens.length > 0) {
       for (let item of itens) {
         let produtoFinalId = item.produto_id;
 
         if (item.isManual || typeof item.produto_id === 'string') {
-          const prodRes = await pool.query(
+          const prodRes = await client.query(
             'INSERT INTO produtos (nome, preco, quantidade_estoque) VALUES ($1, $2, $3) RETURNING id',
             [`(Avulso) ${item.nome}`, item.preco_unitario, 0]
           );
           produtoFinalId = prodRes.rows[0].id;
         }
 
-        await pool.query(
+        await client.query(
           'INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario) VALUES ($1, $2, $3, $4)',
           [id, produtoFinalId, item.quantidade, item.preco_unitario]
         );
       }
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
     res.json({ message: 'Venda e itens atualizados com sucesso!' });
   } catch (err) {
-    await pool.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
     console.error("Erro ao atualizar venda:", err.message);
     res.status(500).json({ error: 'Erro ao atualizar os dados da venda.' });
   }
@@ -514,18 +572,20 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status, meio_pagamento } = req.body;
 
+  let client;
   try {
-    await pool.query('BEGIN');
-    await pool.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
+    client = await pool.connect();
+    await client.query('BEGIN');
+    await client.query('UPDATE ordens_servico SET status = $1 WHERE id = $2', [status, id]);
 
     // 1. Se finalizou a OS, gera a venda automaticamente
     if (status === 'Finalizado') {
-      const osData = await pool.query('SELECT cliente_id, valor_estimado FROM ordens_servico WHERE id = $1', [id]);
+      const osData = await client.query('SELECT cliente_id, valor_estimado FROM ordens_servico WHERE id = $1', [id]);
       if (osData.rowCount > 0) {
         const { cliente_id, valor_estimado } = osData.rows[0];
-        const vendaExistente = await pool.query('SELECT id FROM vendas WHERE os_id = $1', [id]);
+        const vendaExistente = await client.query('SELECT id FROM vendas WHERE os_id = $1', [id]);
         if (vendaExistente.rowCount === 0) {
-          await pool.query(
+          await client.query(
             `INSERT INTO vendas (cliente_id, os_id, valor_total, meio_pagamento) VALUES ($1, $2, $3, $4)`,
             [cliente_id, id, valor_estimado || 0, meio_pagamento || 'Dinheiro']
           );
@@ -541,7 +601,7 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
         JOIN clientes c ON os.cliente_id = c.id
         WHERE os.id = $1
       `;
-      const result = await pool.query(query, [id]);
+      const result = await client.query(query, [id]);
       
       if (result.rowCount > 0 && result.rows[0].telefone) {
         const { numero_os, valor_estimado, telefone } = result.rows[0];
@@ -584,10 +644,14 @@ app.patch('/api/ordens/:id/status', async (req, res) => {
       }
     }
 
-    await pool.query('COMMIT');
+    await client.query('COMMIT');
+    client.release();
     res.json({ message: 'Status atualizado com sucesso!' });
   } catch (err) {
-    await pool.query('ROLLBACK');
+    if (client) {
+      await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
     res.status(500).json({ error: 'Erro ao atualizar status: ' + err.message });
   }
 });
@@ -741,6 +805,12 @@ app.post('/api/reconhecer-aparelho', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+app.use(express.static(path.join(__dirname, '..', 'dist')));
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Rota não encontrada.' });
+  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Back-end do alphaOS rodando na porta ${PORT}`);
 });

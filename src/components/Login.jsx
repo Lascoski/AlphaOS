@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../api';
 import './Login.css';
 
 export default function Login({ setAuth }) {
@@ -14,7 +15,7 @@ export default function Login({ setAuth }) {
     setErro('');
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/login`, {
+      const response = await apiFetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Enviamos também a preferência de lembrar
