@@ -28,6 +28,27 @@ if (process.env.PGSSLMODE === 'require') {
 }
 const pool = new Pool(poolConfig);
 
+function getDatabaseTarget() {
+  if (process.env.DATABASE_URL) {
+    try {
+      const databaseUrl = new URL(process.env.DATABASE_URL);
+      return {
+        source: 'DATABASE_URL',
+        host: databaseUrl.hostname,
+        port: databaseUrl.port || '5432',
+      };
+    } catch {
+      return { source: 'DATABASE_URL', host: 'URL inválida', port: 'indisponível' };
+    }
+  }
+
+  return {
+    source: 'DB_HOST/DB_PORT',
+    host: process.env.DB_HOST || 'não definido (pg tentará localhost)',
+    port: process.env.DB_PORT || '5432 (padrão)',
+  };
+}
+
 // ==========================================
 // ROTA POST: Criar Utilizador Inicial (Registo)
 // ==========================================
@@ -94,6 +115,13 @@ app.post('/api/login', async (req, res) => {
       code: err?.code,
       detail: err?.detail,
       hint: err?.hint,
+      databaseTarget: getDatabaseTarget(),
+      connectionErrors: err?.errors?.map((connectionError) => ({
+        code: connectionError.code,
+        address: connectionError.address,
+        port: connectionError.port,
+        message: connectionError.message,
+      })),
       stack: err?.stack,
     });
     res.status(500).json({ error: 'Erro interno no servidor' });
