@@ -88,7 +88,14 @@ app.post('/api/login', async (req, res) => {
       usuario: { id: usuario.id, nome: usuario.nome, email: usuario.email, papel: usuario.papel }
     });
   } catch (err) {
-    console.error('Erro ao efetuar login:', err.message);
+    console.error('Erro ao efetuar login:', {
+      name: err?.name,
+      message: err?.message || String(err),
+      code: err?.code,
+      detail: err?.detail,
+      hint: err?.hint,
+      stack: err?.stack,
+    });
     res.status(500).json({ error: 'Erro interno no servidor' });
   }
 });
